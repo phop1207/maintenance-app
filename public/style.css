@@ -1,0 +1,853 @@
+:root {
+    --primary-color: #0f172a;      
+    --accent-color: #3b82f6;       
+    --success-color: #10b981;      
+    --danger-color: #ef4444;       
+    --secondary-color: #64748b;    
+    --bg-color: #f8fafc;           
+    --card-bg: #ffffff;
+    --text-main: #334155;          
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;       
+    --panel-bg: #f8fafc;
+    --th-bg: #f1f5f9;
+    --tr-hover: #f8fafc;
+    --code-bg: #f1f5f9;
+    --line-green: #06c755;
+}
+
+[data-theme="dark"] {
+    --primary-color: #f8fafc;      
+    --accent-color: #60a5fa;       
+    --bg-color: #0b0f19;           
+    --card-bg: #111827;            
+    --text-main: #cbd5e1;          
+    --text-muted: #94a3b8;
+    --border-color: #1f2937;       
+    --panel-bg: #1f2937;
+    --th-bg: #1f2937;
+    --tr-hover: #1e293b;
+    --code-bg: #334155;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', 'Sarabun', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    padding: 15px 15px 90px 15px;
+    line-height: 1.5;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.container {
+    max-width: 1140px;
+    margin: 0 auto;
+}
+
+.app-page { display: none; }
+.app-page.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Header */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 10px 5px;
+}
+.logo-area { display: flex; align-items: center; gap: 12px; }
+.logo-icon {
+    font-size: 1.8rem;
+    background: #e0f2fe;
+    padding: 8px;
+    border-radius: 12px;
+}
+[data-theme="dark"] .logo-icon { background: #1e293b; }
+.app-header h1 { font-size: 1.35rem; font-weight: 700; color: var(--primary-color); }
+.subtitle { font-size: 0.8rem; color: var(--text-muted); }
+
+.btn-theme {
+    background: var(--card-bg); border: 1px solid var(--border-color); width: 40px; height: 40px; border-radius: 10px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+
+/* การ์ด */
+.card {
+    background: var(--card-bg); padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04); border: 1px solid var(--border-color); margin-bottom: 20px;
+}
+.card-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color);
+}
+.card-header h2 { font-size: 1.1rem; font-weight: 600; color: var(--primary-color); }
+
+.indicator { display: inline-block; width: 5px; height: 18px; background-color: var(--success-color); border-radius: 3px; }
+.indicator.color-blue { background-color: var(--accent-color); }
+.indicator.color-purple { background-color: #8b5cf6; }
+.indicator.color-green { background-color: #10b981; }
+.indicator.color-orange { background-color: #f59e0b; }
+
+/* LINE Style Form */
+.line-style-tip {
+    background-color: rgba(6, 199, 85, 0.08); border: 1px solid var(--line-green); color: var(--text-main); padding: 12px 15px; border-radius: 10px; font-size: 0.85rem; margin-bottom: 20px;
+}
+[data-theme="dark"] .line-style-tip { background-color: rgba(6, 199, 85, 0.15); }
+
+.form-step-group {
+    background-color: var(--panel-bg); border: 1px solid var(--border-color); padding: 20px 15px 10px 15px; border-radius: 12px; margin-bottom: 20px; position: relative;
+}
+.step-badge {
+    position: absolute; top: -11px; left: 15px; background-color: var(--line-green); color: white; font-size: 0.75rem; font-weight: 700; padding: 2px 10px; border-radius: 20px; box-shadow: 0 2px 4px rgba(6, 199, 85, 0.2);
+}
+
+.form-group-row { display: grid; grid-template-columns: 1fr; gap: 15px; }
+@media (min-width: 640px) { .form-group-row { grid-template-columns: 1fr 1fr; } }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--primary-color); }
+
+input[type="text"], input[type="date"], input[type="time"] {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.95rem; color: var(--text-main); background-color: var(--card-bg); transition: border-color 0.15s, box-shadow 0.15s;
+}
+input:focus { outline: none; border-color: var(--line-green); box-shadow: 0 0 0 3px rgba(6, 199, 85, 0.15); }
+
+/* 📁 เพิ่มสไตล์กล่องสำหรับจัดวางส่วนอัปโหลดไฟล์รูปภาพ */
+.upload-zone {
+    background-color: var(--card-bg); border: 2px dashed var(--border-color); padding: 15px; border-radius: 10px; text-align: left; margin-top: 10px;
+}
+input[type="file"] {
+    display: block; margin-top: 5px; font-size: 0.9rem; color: var(--text-main);
+}
+.file-help-text { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+
+/* 📊 Dashboard */
+.latest-info-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 640px) { .latest-info-grid { grid-template-columns: 1fr 1fr; } }
+.info-block { background: var(--panel-bg); padding: 15px; border-radius: 10px; border: 1px solid var(--border-color); }
+.info-label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
+.info-value { font-size: 1.1rem; font-weight: 700; color: var(--primary-color); word-break: break-all; }
+
+.stat-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
+@media (min-width: 480px) { .stat-grid { grid-template-columns: 1fr 1fr 1fr; } }
+.stat-box { padding: 20px; border-radius: 12px; text-align: center; border: 1px solid var(--border-color); }
+.stat-box h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 10px; color: var(--text-main); }
+.stat-box p { font-size: 1.6rem; font-weight: 700; }
+
+.shop-mk { border-left: 5px solid #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.03); }
+.shop-fuji { border-left: 5px solid #3b82f6; color: #3b82f6; background: rgba(59, 130, 246, 0.03); }
+.shop-lucky { border-left: 5px solid #10b981; color: #10b981; background: rgba(16, 185, 129, 0.03); }
+.type-repair { border-left: 5px solid #dc2626; color: #dc2626; background: rgba(220, 38, 38, 0.03); }
+.type-ma { border-left: 5px solid #d97706; color: #d97706; background: rgba(217, 119, 6, 0.03); }
+.type-install { border-left: 5px solid #2563eb; color: #2563eb; background: rgba(37, 99, 235, 0.03); }
+
+.dashboard-footer-credit { text-align: center; margin: 30px 0 10px 0; font-size: 0.8rem; color: var(--text-muted); }
+
+/* ค้นหา */
+.search-panel { 
+    background-color: var(--panel-bg); 
+    border-radius: 12px; 
+    padding: 15px; 
+    border: 1px solid var(--border-color); 
+    margin-bottom: 20px; 
+}
+
+.search-grid { 
+    display: flex; 
+    gap: 12px; 
+    flex-direction: column; 
+    width: 100%;
+}
+
+/* 💻 ปรับการแสดงผลบนคอมพิวเตอร์ (หน้าจอใหญ่) */
+@media (min-width: 768px) { 
+    .search-grid { 
+        flex-direction: row; 
+        align-items: flex-end; 
+    } 
+}
+
+/* 🔍 ล็อกคลาสและตัวช่องพิมพ์ข้อความ (input) ให้ยืดเต็มพื้นที่เสมอ */
+.search-field { 
+    width: 100%; 
+    flex: 1; /* บังคับให้ช่องค้นหาขยายกินพื้นที่ที่เหลือทั้งหมดบนจอคอม */
+}
+
+.search-field.query-field { 
+    flex: 2; /* ถ้ามีหลายช่อง ให้ช่องพิมพ์หลักยาวเด่นขึ้นมา */
+}
+
+.search-field label { 
+    display: block; 
+    font-size: 0.8rem; 
+    font-weight: 600; 
+    margin-bottom: 6px; 
+}
+
+/* คุมกล่องอินพุตข้างในให้ยืด 100% เต็มกรอบ ไม่หดตัว */
+.search-field input[type="text"] {
+    width: 100%;
+    min-width: 100%;
+    box-sizing: border-box;
+}
+
+.search-action { 
+    margin-top: 5px; 
+    text-align: right; 
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .search-action {
+        width: auto; /* บนคอมพิวเตอร์ให้ปุ่มกว้างพอดีตัวอักษร ไม่ล้นแถว */
+    }
+}
+
+
+/* ปุ่มควบคุม */
+.form-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+@media (min-width: 480px) { .form-actions { flex-direction: row; } }
+
+.btn { padding: 12px 20px; border: none; border-radius: 10px; font-size: 0.95rem; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }
+@media (min-width: 480px) { .btn { width: auto; } }
+
+.btn-success { background-color: var(--line-green); color: white; box-shadow: 0 4px 10px rgba(6, 199, 85, 0.15); }
+.btn-secondary { background-color: var(--panel-bg); color: var(--text-main); border: 1px solid var(--border-color); }
+.btn-clear { background-color: var(--secondary-color); color: white; width: 100%; }
+
+.btn-edit { background-color: #fef3c7; color: #b45309; padding: 8px 14px; font-size: 0.85rem; border-radius: 8px; border: none; }
+[data-theme="dark"] .btn-edit { background-color: #78350f; color: #fde68a; }
+.btn-delete { background-color: #fee2e2; color: #b91c1c; padding: 8px 14px; font-size: 0.85rem; border-radius: 8px; border: none; }
+[data-theme="dark"] .btn-delete { background-color: #7f1d1d; color: #fca5a5; }
+
+/* ตาราง */
+.table-container { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border-color); }
+table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+th { background-color: var(--th-bg); color: var(--primary-color); font-weight: 600; padding: 12px 14px; white-space: nowrap; }
+td { padding: 12px 14px; border-bottom: 1px solid var(--border-color); color: var(--text-main); white-space: nowrap; vertical-align: middle; }
+tr:hover td { background-color: var(--tr-hover); }
+
+code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; font-family: monospace; color: var(--accent-color); font-weight: 600; }
+.action-cell { display: flex; gap: 8px; }
+
+/* รูปย่อ Thumbnail */
+.img-container {
+    display: inline-block; width: 60px; height: 60px; overflow: hidden; border-radius: 8px; border: 2px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.05); background: #f1f5f9;
+}
+.img-thumb { width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.15s ease; }
+.img-thumb:hover { transform: scale(1.05); }
+
+/* Bottom Navigation */
+.bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 65px; background-color: var(--card-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; align-items: center; z-index: 1000; box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+}
+.nav-item {
+    background: none; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; width: 100%; height: 100%; gap: 3px; transition: color 0.15s ease;
+}
+.nav-icon { font-size: 1.3rem; }
+.nav-label { font-size: 0.75rem; font-weight: 500; }
+.nav-item.active { color: var(--accent-color); }
+
+/* 🏷️ สีประจำแบรนด์เพิ่มเติมหน้าภาพรวม */
+.shop-sme { border-left: 5px solid #a855f7; color: #a855f7; background: rgba(168, 85, 247, 0.03); } /* สีม่วง */
+.shop-bbq { border-left: 5px solid #f97316; color: #f97316; background: rgba(249, 115, 22, 0.03); }  /* สีส้ม */
+.shop-other-brand { border-left: 5px solid #64748b; color: #64748b; background: rgba(100, 116, 139, 0.03); } /* สีเทา */
+
+/* ==========================================================================
+   🧱 เพิ่มคลาสตกแต่งเพิ่มเติมสำหรับหน้าประวัติงาน (v1.3 โดย PHOP)
+   ========================================================================== */
+
+/* 📊 ตัวบอกยอดผลการค้นหา และปุ่ม Excel */
+.search-results-counter {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.btn-excel {
+    background: linear-gradient(135deg, #107c41, #1f9a55) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-excel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 124, 65, 0.3);
+}
+
+/* 🏷️ ดีไซน์ป้ายสแตมป์แบรนด์ (Custom Badges) */
+.custom-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+}
+.badge-mk { background-color: #ffebe6; color: #de350b; }
+.badge-fuji { background-color: #deebff; color: #0747a6; }
+.badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bbq { background-color: #e3fcef; color: #006644; }
+.badge-sme { background-color: #fff0b3; color: #172b4d; }
+
+/* 🖼️ ระบบ Image Lightbox Modal */
+.lightbox {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    padding-top: 60px;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.85);
+}
+.lightbox-content {
+    margin: auto;
+    display: block;
+    max-width: 90%;
+    max-height: 75vh;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    animation: zoomEffect 0.25s ease;
+}
+@keyframes zoomEffect {
+    from {transform: scale(0.7); opacity: 0;}
+    to {transform: scale(1); opacity: 1;}
+}
+.lightbox-close {
+    position: absolute;
+    top: 20px;
+    right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.lightbox-close:hover { color: #bbb; }
+#lightbox-caption {
+    margin: auto;
+    display: block;
+    width: 80%;
+    max-width: 700px;
+    text-align: center;
+    color: #ccc;
+    padding: 15px 0;
+    font-size: 1rem;
+}
+
+/* ==========================================================================
+   🧱 โครงสร้างดีไซน์เพิ่มเติม ระบบลบแบบใช้รหัส, ตัวนับ และ Lightbox (v1.3)
+   ========================================================================== */
+
+.search-results-counter {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.btn-excel {
+    background: linear-gradient(135deg, #107c41, #1f9a55) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-excel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 124, 65, 0.3);
+}
+.btn-danger-zone {
+    background: linear-gradient(135deg, #d32f2f, #f44336) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+.btn-danger-zone:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
+}
+
+/* ป้ายแสดงชื่อแบรนด์คุมสีแมทช์กับระบบ */
+.custom-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+}
+.badge-mk { background-color: #ffebe6; color: #de350b; }
+.badge-fuji { background-color: #deebff; color: #0747a6; }
+.badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bbq { background-color: #e3fcef; color: #006644; }
+.badge-sme { background-color: #fff0b3; color: #172b4d; }
+
+/* หน้าต่างส่องขยายรูปภาพใบงาน (Lightbox Modal) */
+.lightbox {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    padding-top: 60px;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.85);
+}
+.lightbox-content {
+    margin: auto;
+    display: block;
+    max-width: 90%;
+    max-height: 75vh;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    animation: zoomEffect 0.25s ease;
+}
+@keyframes zoomEffect {
+    from {transform: scale(0.7); opacity: 0;}
+    to {transform: scale(1); opacity: 1;}
+}
+.lightbox-close {
+    position: absolute;
+    top: 20px; right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.lightbox-close:hover { color: #bbb; }
+#lightbox-caption {
+    margin: auto;
+    display: block;
+    width: 80%; max-width: 700px;
+    text-align: center;
+    color: #ccc;
+    padding: 15px 0;
+    font-size: 1rem;
+}
+
+/* ==========================================================================
+   🧱 โครงสร้างดีไซน์เพิ่มเติม ระบบลบแบบใช้รหัส, ตัวนับ และ Lightbox (v1.3)
+   ========================================================================== */
+
+.search-results-counter {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.btn-excel {
+    background: linear-gradient(135deg, #107c41, #1f9a55) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-excel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 124, 65, 0.3);
+}
+.btn-danger-zone {
+    background: linear-gradient(135deg, #d32f2f, #f44336) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+.btn-danger-zone:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
+}
+
+.custom-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+}
+.badge-mk { background-color: #ffebe6; color: #de350b; }
+.badge-fuji { background-color: #deebff; color: #0747a6; }
+.badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bbq { background-color: #e3fcef; color: #006644; }
+.badge-sme { background-color: #fff0b3; color: #172b4d; }
+
+.lightbox {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    padding-top: 60px;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.85);
+}
+.lightbox-content {
+    margin: auto;
+    display: block;
+    max-width: 90%;
+    max-height: 75vh;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    animation: zoomEffect 0.25s ease;
+}
+@keyframes zoomEffect {
+    from {transform: scale(0.7); opacity: 0;}
+    to {transform: scale(1); opacity: 1;}
+}
+.lightbox-close {
+    position: absolute;
+    top: 20px; right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.lightbox-close:hover { color: #bbb; }
+#lightbox-caption {
+    margin: auto;
+    display: block;
+    width: 80%; max-width: 700px;
+    text-align: center;
+    color: #ccc;
+    padding: 15px 0;
+    font-size: 1rem;
+}
+
+/* ==========================================================================
+   🧱 โครงสร้างดีไซน์เพิ่มเติม ระบบลบแบบใช้รหัส, ตัวนับ และ Lightbox (v1.5)
+   ========================================================================== */
+
+.search-results-counter {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.btn-excel {
+    background: linear-gradient(135deg, #107c41, #1f9a55) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-excel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 124, 65, 0.3);
+}
+.btn-danger-zone {
+    background: linear-gradient(135deg, #d32f2f, #f44336) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+.btn-danger-zone:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
+}
+
+.custom-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+}
+.badge-mk { background-color: #ffebe6; color: #de350b; }
+.badge-fuji { background-color: #deebff; color: #0747a6; }
+.badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bbq { background-color: #e3fcef; color: #006644; }
+.badge-sme { background-color: #fff0b3; color: #172b4d; }
+
+.lightbox {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    padding-top: 60px;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.85);
+}
+.lightbox-content {
+    margin: auto;
+    display: block;
+    max-width: 90%;
+    max-height: 75vh;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    animation: zoomEffect 0.25s ease;
+}
+@keyframes zoomEffect {
+    from {transform: scale(0.7); opacity: 0;}
+    to {transform: scale(1); opacity: 1;}
+}
+.lightbox-close {
+    position: absolute;
+    top: 20px; right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.lightbox-close:hover { color: #bbb; }
+#lightbox-caption {
+    margin: auto;
+    display: block;
+    width: 80%; max-width: 700px;
+    text-align: center;
+    color: #ccc;
+    padding: 15px 0;
+    font-size: 1rem;
+}
+
+/* ==========================================================================
+   🧱 โครงสร้างดีไซน์เพิ่มเติม ระบบลบแบบใช้รหัส, ตัวนับ, Lightbox และ แท็กกรองแยกด่วน (v1.6)
+   ========================================================================== */
+
+.search-results-counter {
+    margin-top: 15px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.btn-excel {
+    background: linear-gradient(135deg, #107c41, #1f9a55) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-excel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 124, 65, 0.3);
+}
+.btn-danger-zone {
+    background: linear-gradient(135deg, #d32f2f, #f44336) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+.btn-danger-zone:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
+}
+
+.custom-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+}
+.badge-mk { background-color: #ffebe6; color: #de350b; }
+.badge-fuji { background-color: #deebff; color: #0747a6; }
+.badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bbq { background-color: #e3fcef; color: #006644; }
+.badge-sme { background-color: #fff0b3; color: #172b4d; }
+
+/* 🎛️ ดีไซน์แท็กควบคุมตัวกรองแยกข้อมูลหน้าตารางประวัติ */
+.quick-filters-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.filter-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+    min-width: 100px;
+}
+.filter-tags-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.tag-btn {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.tag-btn:hover {
+    background-color: var(--border-color);
+    color: var(--text-main);
+}
+.tag-btn.active {
+    background-color: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    font-weight: 600;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+/* ไฮไลต์สีสไตล์พิเศษตามแบรนด์เมื่อถูกเลือกกดแอ็กทีฟ */
+.tag-btn.tag-mk.active { background-color: #de350b !important; border-color: #de350b !important; }
+.tag-btn.tag-fuji.active { background-color: #0747a6 !important; border-color: #0747a6 !important; }
+.tag-btn.tag-lucky.active { background-color: #403294 !important; border-color: #403294 !important; }
+.tag-btn.tag-bbq.active { background-color: #006644 !important; border-color: #006644 !important; }
+.tag-btn.tag-sme.active { background-color: #e5a900 !important; border-color: #e5a900 !important; }
+
+.lightbox {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    padding-top: 60px;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.85);
+}
+.lightbox-content {
+    margin: auto;
+    display: block;
+    max-width: 90%;
+    max-height: 75vh;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    animation: zoomEffect 0.25s ease;
+}
+@keyframes zoomEffect {
+    from {transform: scale(0.7); opacity: 0;}
+    to {transform: scale(1); opacity: 1;}
+}
+.lightbox-close {
+    position: absolute;
+    top: 20px; right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.lightbox-close:hover { color: #bbb; }
+#lightbox-caption {
+    margin: auto;
+    display: block;
+    width: 80%; max-width: 700px;
+    text-align: center;
+    color: #ccc;
+    padding: 15px 0;
+    font-size: 1rem;
+}
+
+/* ==========================================================================
+   🧱 โครงสร้างดีไซน์เพิ่มเติม ระบบ Dropdown และฟิลด์เงื่อนไขพิเศษ (v1.7)
+   ========================================================================== */
+
+.custom-select-box {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    color: var(--text-main);
+    background-color: var(--card-bg);
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+.custom-select-box:focus {
+    border-color: var(--accent-color);
+}
+.conditional-field {
+    animation: fadeInSlide 0.3s ease-out;
+}
+@keyframes fadeInSlide {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.search-results-counter { margin-top: 15px; font-size: 0.9rem; color: var(--text-muted); }
+.btn-excel {
+    background: linear-gradient(135deg, #107c41, #1f9a55) !important; color: #ffffff !important;
+    font-weight: 500; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;
+}
+.btn-excel:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16, 124, 65, 0.3); }
+.btn-danger-zone {
+    background: linear-gradient(135deg, #d32f2f, #f44336) !important; color: #ffffff !important;
+    font-weight: 500; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s ease;
+}
+.btn-danger-zone:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4); }
+
+.custom-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; text-align: center; }
+.badge-mk { background-color: #ffebe6; color: #de350b; }
+.badge-fuji { background-color: #deebff; color: #0747a6; }
+.badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bbq { background-color: #e3fcef; color: #006644; }
+.badge-sme { background-color: #fff0b3; color: #172b4d; }
+
+.quick-filters-wrapper { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.filter-title { font-size: 0.9rem; font-weight: 600; color: var(--text-main); min-width: 100px; }
+.filter-tags-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag-btn {
+    background-color: var(--panel-bg); border: 1px solid var(--border-color); color: var(--text-muted);
+    padding: 6px 14px; border-radius: 30px; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease;
+}
+.tag-btn:hover { background-color: var(--border-color); color: var(--text-main); }
+.tag-btn.active {
+    background-color: var(--accent-color) !important; border-color: var(--accent-color) !important;
+    color: #ffffff !important; font-weight: 600; box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+.tag-btn.tag-mk.active { background-color: #de350b !important; border-color: #de350b !important; }
+.tag-btn.tag-fuji.active { background-color: #0747a6 !important; border-color: #0747a6 !important; }
+.tag-btn.tag-lucky.active { background-color: #403294 !important; border-color: #403294 !important; }
+.tag-btn.tag-bbq.active { background-color: #006644 !important; border-color: #006644 !important; }
+.tag-btn.tag-sme.active { background-color: #e5a900 !important; border-color: #e5a900 !important; }
+
+.lightbox { display: none; position: fixed; z-index: 9999; padding-top: 60px; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.85); }
+.lightbox-content { margin: auto; display: block; max-width: 90%; max-height: 75vh; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); animation: zoomEffect 0.25s ease; }
+@keyframes zoomEffect { from {transform: scale(0.7); opacity: 0;} to {transform: scale(1); opacity: 1;} }
+.lightbox-close { position: absolute; top: 20px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+.lightbox-close:hover { color: #bbb; }
+#lightbox-caption { margin: auto; display: block; width: 80%; max-width: 700px; text-align: center; color: #ccc; padding: 15px 0; font-size: 1rem; }

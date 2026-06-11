@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Logger By.PHOP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <div class="logo-area">
+                <span class="logo-icon">🤖</span>
+                <div>
+                    <h1>Job Logger By.PHOP</h1>
+                    <p class="subtitle">ระบบจัดการและบันทึกงาน</p>
+                </div>
+            </div>
+            <button id="theme-toggle" class="btn-theme" aria-label="Toggle Theme">
+                <span id="theme-icon">🌙</span>
+            </button>
+        </header>
+        
+        <div id="page-overview" class="app-page active">
+            <div class="card latest-update-card">
+                <div class="card-header">
+                    <span class="indicator color-purple"></span>
+                    <h2>📢 งานที่อัปเดตล่าสุด</h2>
+                </div>
+                <div class="latest-info-grid">
+                    <div class="info-block">
+                        <span class="info-label">📅 วันที่อัปเดตล่าสุด:</span>
+                        <span id="stat-last-date" class="info-value">-</span>
+                    </div>
+                    <div class="info-block">
+                        <span class="info-label">📍 สถานที่ล่าสุด:</span>
+                        <span id="stat-location" class="info-value">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-header">
+                    <span class="indicator color-green"></span>
+                    <h2>🏪 สรุปจำนวนงานตามแบรนด์</h2>
+                </div>
+                <div class="stat-grid">
+                    <div class="stat-box shop-mk" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('brand', 'Mk');">
+                        <h3>Mk</h3>
+                        <p><span id="stat-shop-mk">0</span></p>
+                    </div>
+                    <div class="stat-box shop-fuji" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('brand', 'Fuji');">
+                        <h3>Fuji</h3>
+                        <p><span id="stat-shop-fuji">0</span></p>
+                    </div>
+                    <div class="stat-box shop-lucky" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('brand', 'Lucky');">
+                        <h3>Lucky Suki</h3>
+                        <p><span id="stat-shop-lucky">0</span></p>
+                    </div>
+                    <div class="stat-box shop-bbq" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('brand', 'Bbq');">
+                        <h3>Bbq</h3>
+                        <p><span id="stat-shop-bbq">0</span></p>
+                    </div>
+                    <div class="stat-box shop-sme" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('brand', 'Sme');">
+                        <h3>ร้าน Sme</h3>
+                        <p><span id="stat-shop-sme">0</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-header">
+                    <span class="indicator color-orange"></span>
+                    <h2>⚙️ สรุปจำนวนงานตามประเภท</h2>
+                </div>
+                <div class="stat-grid">
+                    <div class="stat-box type-repair" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('type', 'repair');">
+                        <h3>Repair (งานซ่อม)</h3>
+                        <p><span id="stat-type-repair">0</span></p>
+                    </div>
+                    <div class="stat-box type-ma" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('type', 'ma');">
+                        <h3>MA (บำรุงรักษา)</h3>
+                        <p><span id="stat-type-ma">0</span></p>
+                    </div>
+                    <div class="stat-box type-install" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('type', 'install');">
+                        <h3>ติดตั้ง (Installation)</h3>
+                        <p><span id="stat-type-install">0</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="dashboard-footer-credit">
+                <p>Engineering Management Console v1.7 | <b>Job Logger By.PHOP</b></p>
+            </div>
+        </div>
+        
+        <div id="page-form" class="app-page">
+            <div class="card form-card">
+                <div class="card-header">
+                    <span class="indicator"></span>
+                    <h2 id="form-title">📝 ลงข้อมูลงานใหม่</h2>
+                </div>
+                
+                <div class="line-style-tip">
+                    <span>💡 <b>คำแนะนำจากระบบ:</b> กรอกข้อมูลและแนบรูปถ่ายใบงานให้ครบถ้วนเพื่อจัดเก็บเข้าคลังข้อมูลครับ</span>
+                </div>
+
+                <form id="job-form" enctype="multipart/form-data">
+                    <input type="hidden" id="job-id">
+                    <input type="hidden" id="image_path">
+                    
+                    <div class="form-step-group">
+                        <div class="step-badge">ขั้นตอนที่ 1</div>
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label for="date">📅 วันที่เข้าทำงาน</label>
+                                <input type="date" id="date" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="time">⏰ เวลาเข้าทำงาน</label>
+                                <input type="time" id="time" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-step-group">
+                        <div class="step-badge">ขั้นตอนที่ 2</div>
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 15px;" class="form-group-row">
+                            <div class="form-group">
+                                <label for="shop_brand">🏷️ เลือกกลุ่มแบรนด์ (สำหรับคิดสถิติ)</label>
+                                <select id="shop_brand" class="custom-select-box" required>
+                                    <option value="" disabled selected>-- เลือกกลุ่มแบรนด์ --</option>
+                                    <option value="Mk">Mk</option>
+                                    <option value="Fuji">Fuji</option>
+                                    <option value="Lucky">Lucky Suki</option>
+                                    <option value="Bbq">Bbq</option>
+                                    <option value="Sme">ร้าน Sme (นอกเหนือลิสต์หลัก)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="shop_name">🏪 ชื่อร้านค้าหน้างานจริง</label>
+                                <input type="text" id="shop_name" placeholder="พิมพ์ชื่อร้าน เช่น บาร์บีคิวพลาซ่า, ตำแซ่บ, นายเอ" required>
+                            </div>
+                        </div>
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label for="branch_code">📌 รหัสสาขา</label>
+                                <input type="text" id="branch_code" placeholder="เช่น m074 (หากไม่มีพิมพ์เครื่องหมาย -)">
+                            </div>
+                            <div class="form-group">
+                                <label for="branch_name">🗺️ ชื่อสาขา / รายละเอียดสถานที่</label>
+                                <input type="text" id="branch_name" placeholder="ระบุห้างสรรพสินค้า หรือพิกัดหน้างานอย่างละเอียด" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-step-group">
+                        <div class="step-badge">ขั้นตอนที่ 3</div>
+                        <div class="form-group">
+                            <label for="job_type">⚙️ ประเภทงานที่เข้าปฏิบัติงาน</label>
+                            <select id="job_type" class="custom-select-box" required>
+                                <option value="" disabled selected>-- เลือกประเภทงาน --</option>
+                                <option value="Maintenance">MA = Maintenance (งานบำรุงรักษา)</option>
+                                <option value="Installation">ติดตั้ง = Installation (งานติดตั้งระบบ)</option>
+                                <option value="Repair">ซ่อม = Repair (งานซ่อมแซมแก้ไข)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group conditional-field" id="repair-detail-container" style="display: none;">
+                            <label for="repair_detail" style="color: var(--danger-color); font-weight: 600;">🔧 รายละเอียดเพิ่มเติม (ซ่อมอะไร):</label>
+                            <input type="text" id="repair_detail" placeholder="เช่น ซ่อมตู้แช่แข็งไฟรั่ว, เปลี่ยนมอเตอร์ปั๊มน้ำ, ซ่อมระบบไฟใต้เคาน์เตอร์">
+                        </div>
+                        
+                        <div class="form-group upload-zone">
+                            <label for="job_image">📷 แนบรูปภาพใบงานซ่อม</label>
+                            <input type="file" id="job_image" accept="image/*">
+                            <p class="file-help-text">รองรับไฟล์ภาพถ่ายจากกล้อง หรือไฟล์รูปภาพทั่วไป</p>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" id="btn-save" class="btn btn-success">🚀 ยืนยันบันทึกข้อมูลงาน</button>
+                        <button type="button" id="btn-cancel" class="btn btn-secondary" style="display: none;">✕ ยกเลิกการแก้ไข</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="dashboard-footer-credit">
+                <p>สร้างและออกแบบระบบโดย | <b>Job Logger By.PHOP</b></p>
+            </div>
+        </div>
+
+        <div id="page-table" class="app-page">
+            <div class="card table-card">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="indicator color-blue"></span>
+                        <h2>รายการล็อกบันทึกงานซ่อมทั้งหมด</h2>
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" id="btn-export-excel" class="btn btn-excel" onclick="exportToExcel()">📊 ส่งออก Excel</button>
+                        <button type="button" class="btn btn-danger-zone" onclick="dangerDelete('month')">📅 ลบข้อมูลทั้งเดือนนี้</button>
+                        <button type="button" class="btn btn-danger-zone" onclick="dangerDelete('all')">⚠️ ลบข้อมูลทั้งหมด</button>
+                    </div>
+                </div>
+
+                <div class="search-panel">
+                    <div class="quick-filters-wrapper">
+                        <span class="filter-title">🏷️ แยกดูตามแบรนด์:</span>
+                        <div class="filter-tags-group">
+                            <button class="tag-btn active" id="tag-brand-all" onclick="setQuickFilter('brand', 'all')">ทั้งหมด</button>
+                            <button class="tag-btn tag-mk" id="tag-brand-mk" onclick="setQuickFilter('brand', 'Mk')">Mk</button>
+                            <button class="tag-btn tag-fuji" id="tag-brand-fuji" onclick="setQuickFilter('brand', 'Fuji')">Fuji</button>
+                            <button class="tag-btn tag-lucky" id="tag-brand-lucky" onclick="setQuickFilter('brand', 'Lucky')">Lucky</button>
+                            <button class="tag-btn tag-bbq" id="tag-brand-bbq" onclick="setQuickFilter('brand', 'Bbq')">Bbq</button>
+                            <button class="tag-btn tag-sme" id="tag-brand-sme" onclick="setQuickFilter('brand', 'Sme')">Sme</button>
+                        </div>
+                    </div>
+                    
+                    <div class="quick-filters-wrapper" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color);">
+                        <span class="filter-title">⚙️ แยกดูตามงาน:</span>
+                        <div class="filter-tags-group">
+                            <button class="tag-btn active" id="tag-type-all" onclick="setQuickFilter('type', 'all')">ทั้งหมด</button>
+                            <button class="tag-btn" id="tag-type-repair" onclick="setQuickFilter('type', 'repair')">Repair (งานซ่อม)</button>
+                            <button class="tag-btn" id="tag-type-ma" onclick="setQuickFilter('type', 'ma')">MA (บำรุงรักษา)</button>
+                            <button class="tag-btn" id="tag-type-install" onclick="setQuickFilter('type', 'install')">ติดตั้ง (Installation)</button>
+                        </div>
+                    </div>
+
+                    <div class="search-grid" style="margin-top: 15px;">
+                        <div class="search-field query-field">
+                            <label for="search-input">🔍 เจาะจงค้นหาเพิ่ม</label>
+                            <input type="text" id="search-input" placeholder="พิมพ์คีย์เวิร์ดขยายการค้นหา...">
+                        </div>
+                        <div class="search-field">
+                            <label for="start-date">📅 ตั้งแต่</label>
+                            <input type="date" id="start-date">
+                        </div>
+                        <div class="search-field">
+                            <label for="end-date">📅 ถึงวันที่</label>
+                            <input type="date" id="end-date">
+                        </div>
+                        <div class="search-action">
+                            <button type="button" id="btn-clear-filter" class="btn btn-clear">ล้างค่ายกเว้น</button>
+                        </div>
+                    </div>
+                    
+                    <div class="search-results-counter">
+                        กำลังแสดงผลข้อมูลที่กรองเลือก: <span id="filtered-count" style="font-weight: 700; color: var(--primary-color);">0</span> รายการ
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>วันที่</th>
+                                <th>เวลา</th>
+                                <th>ร้าน / แบรนด์</th>
+                                <th>รหัสสาขา</th>
+                                <th>ชื่อสาขา</th>
+                                <th>ประเภทงาน</th>
+                                <th>รูปใบงาน</th>
+                                <th style="text-align: center;">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="job-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="lightbox-modal" class="lightbox" onclick="closeLightbox()">
+        <span class="lightbox-close">&times;</span>
+        <img class="lightbox-content" id="lightbox-img" alt="ใบงานขยายใหญ่">
+        <div id="lightbox-caption"></div>
+    </div>
+
+    <nav class="bottom-nav">
+        <button id="nav-overview" class="nav-item active" onclick="switchPage('overview')">
+            <span class="nav-icon">📊</span>
+            <span class="nav-label">ภาพรวม</span>
+        </button>
+        <button id="nav-form" class="nav-item" onclick="switchPage('form')">
+            <span class="nav-icon">📝</span>
+            <span class="nav-label">กรอกข้อมูล</span>
+        </button>
+        <button id="nav-table" class="nav-item" onclick="switchPage('table')">
+            <span class="nav-icon">📋</span>
+            <span class="nav-label">ประวัติงาน</span>
+        </button>
+    </nav>
+
+    <script src="app.js"></script>
+</body>
+</html>
