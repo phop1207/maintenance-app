@@ -4,18 +4,27 @@ const path = require('path');
 const fs = require('fs');
 const line = require('@line/bot-sdk');
 const multer = require('multer'); 
+const now = new Date();
+// ปรับเวลาให้เป็น UTC+7 (ประเทศไทย)
+const thailandTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+
+// ดึงเฉพาะวันที่ และ เวลา ออกมา
+const date = thailandTime.toISOString().split('T')[0]; // จะได้รูปแบบ YYYY-MM-DD
+const time = thailandTime.toTimeString().split(' ')[0].substring(0, 5); // จะได้รูปแบบ HH:MM
+
+// แล้วค่อยเอาค่า date กับ time นี้ไปใส่ใน object ที่จะ insert ครับ
+const { data, error } = await supabase.from('jobs').insert([{
+    date: date,
+    time: time,
+    // ... ฟิลด์อื่นๆ ของคุณ
+}]);
 const { createClient } = require('@supabase/supabase-js'); // เอามาไว้กับตัวอื่น
-// เปลี่ยนจากการใช้เวลาของ server ตรงๆ เป็น...
-const thaiTime = new Date().toLocaleTimeString("th-TH", {
-    timeZone: "Asia/Bangkok",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false // ถ้าอยากได้ 03:20 ใช้ false (24 ชม.)
-});
+
 
 // แล้วเอาค่า thaiTime นี้ไปใส่ใน object ที่จะ insert ลง Supabase ครับ
 
 // ตั้งค่า
+app.use('/uploads', express.static('uploads'));
 const app = express();
 const PORT = process.env.PORT || 3000;
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
@@ -501,11 +510,21 @@ app.get('/api/jobs', async (req, res) => {
 });
 
 app.post('/api/jobs', upload.single('image'), async (req, res) => {
+    // 1. เพิ่ม Console Log เพื่อเช็คว่าได้รับข้อมูลอะไรมาบ้างจาก LINE
+    console.log("Received body:", req.body);
+    console.log("Received file:", req.file);
+
     const { date, time, shop_brand, shop_name, branch_code, branch_name, job_type, repair_detail } = req.body;
     const image_path = req.file ? 'uploads/' + req.file.filename : '';
 
+    // 2. ตรวจสอบว่าถ้าไม่มีข้อมูลบังคับ (เช่น date) ให้ตอบกลับ Error ทันที
+    if (!date || !time) {
+        return res.status(400).json({ error: "Missing required fields: date or time" });
+    }
+
     const { data, error } = await supabase.from('jobs').insert([{
-        date, time,
+        date, 
+        time,
         shop_brand: capitalizeTextBackend(shop_brand || getBrandCategory(shop_name)),
         shop_name: capitalizeTextBackend(shop_name),
         branch_code: (branch_code || '-').toUpperCase(),
@@ -515,7 +534,11 @@ app.post('/api/jobs', upload.single('image'), async (req, res) => {
         image_path
     }]).select();
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+        console.error("Supabase Insert Error:", error); // ดู Error ละเอียดใน Log
+        return res.status(500).json({ error: error.message });
+    }
+    
     res.json({ message: 'Created successfully', id: data[0].id });
 });
 
