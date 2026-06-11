@@ -4,6 +4,9 @@ const path = require('path');
 const fs = require('fs');
 const line = require('@line/bot-sdk');
 const multer = require('multer'); 
+const { createClient } = require('@supabase/supabase-js'); // เอามาไว้กับตัวอื่น
+// เปลี่ยนจากการใช้เวลาของ server ตรงๆ เป็น...
+// แทนที่จะใช้ new Date() ตรงๆ ให้ใช้ฟังก์ชันนี้ครับ
 const now = new Date();
 // ปรับเวลาให้เป็น UTC+7 (ประเทศไทย)
 const thailandTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
@@ -18,8 +21,6 @@ const { data, error } = await supabase.from('jobs').insert([{
     time: time,
     // ... ฟิลด์อื่นๆ ของคุณ
 }]);
-const { createClient } = require('@supabase/supabase-js'); // เอามาไว้กับตัวอื่น
-
 
 // แล้วเอาค่า thaiTime นี้ไปใส่ใน object ที่จะ insert ลง Supabase ครับ
 
