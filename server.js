@@ -5,6 +5,15 @@ const fs = require('fs');
 const line = require('@line/bot-sdk');
 const multer = require('multer'); 
 const { createClient } = require('@supabase/supabase-js'); // เอามาไว้กับตัวอื่น
+// เปลี่ยนจากการใช้เวลาของ server ตรงๆ เป็น...
+const thaiTime = new Date().toLocaleTimeString("th-TH", {
+    timeZone: "Asia/Bangkok",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false // ถ้าอยากได้ 03:20 ใช้ false (24 ชม.)
+});
+
+// แล้วเอาค่า thaiTime นี้ไปใส่ใน object ที่จะ insert ลง Supabase ครับ
 
 // ตั้งค่า
 const app = express();
