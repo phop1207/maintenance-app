@@ -25,8 +25,8 @@ const { data, error } = await supabase.from('jobs').insert([{
 // แล้วเอาค่า thaiTime นี้ไปใส่ใน object ที่จะ insert ลง Supabase ครับ
 
 // ตั้งค่า
-app.use('/uploads', express.static('uploads'));
 const app = express();
+app.use('/uploads', express.static('uploads'));
 const PORT = process.env.PORT || 3000;
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 // ... (หลังบรรทัด const supabase = ...)
