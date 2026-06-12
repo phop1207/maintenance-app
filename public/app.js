@@ -1,6 +1,13 @@
 const API_URL = '/api/jobs';
 let allJobs = [];
-let currentFilteredJobs = []; 
+let currentFilteredJobs = [];
+
+// คืน URL ของรูปภาพ: ถ้าเป็น public URL ของ Supabase Storage (เริ่มด้วย http) ใช้ตรงๆ
+// ถ้าเป็น path เก่าแบบ local (เช่น "uploads/xxx.jpg") ให้เติม "/" นำหน้า
+function resolveImageUrl(imagePath) {
+    if (!imagePath) return '';
+    return imagePath.startsWith('http') ? imagePath : '/' + imagePath;
+} 
 
 let selectedBrandFilter = 'all';
 let selectedTypeFilter = 'all';
@@ -149,8 +156,9 @@ function renderTable(jobs) {
     jobs.forEach(job => {
         let imageHtml = '<span style="color:#94a3b8; font-style:italic; font-size:0.85rem;">ไม่มีรูปภาพ</span>';
         if (job.image_path) {
+            const imgUrl = resolveImageUrl(job.image_path);
             imageHtml = `<div class="img-container">
-                            <img src="/${job.image_path}" alt="ใบงาน" class="img-thumb" style="cursor: pointer;" onclick="openLightbox('/${job.image_path}', '${capitalizeText(job.shop_name)} - ${capitalizeText(job.branch_name)}')" title="คลิกส่องใบงาน">
+                            <img src="${imgUrl}" alt="ใบงาน" class="img-thumb" style="cursor: pointer;" onclick="openLightbox('${imgUrl}', '${capitalizeText(job.shop_name)} - ${capitalizeText(job.branch_name)}')" title="คลิกส่องใบงาน">
                          </div>`;
         }
 
@@ -270,7 +278,7 @@ window.exportToExcel = function() {
             'ชื่อสาขา/สถานที่': capitalizeText(job.branch_name) || '-',
             'ประเภทงานหลัก': job.job_type || '-',
             'รายละเอียดความเสียหาย (กรณีงานซ่อม)': job.repair_detail || '-',
-            'ที่อยู่ไฟล์รูปภาพ': job.image_path ? window.location.origin + '/' + job.image_path : 'ไม่มีรูปภาพ'
+            'ที่อยู่ไฟล์รูปภาพ': job.image_path ? (job.image_path.startsWith('http') ? job.image_path : window.location.origin + '/' + job.image_path) : 'ไม่มีรูปภาพ'
         }));
 
         const worksheet = XLSX.utils.json_to_sheet(dataForExcel);
