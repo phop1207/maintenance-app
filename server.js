@@ -652,19 +652,27 @@ app.post('/webhook', async (req, res) => {
                     }
 
                     fs.writeFileSync(localFilePath, buffer);
+                    console.log(`[IMAGE] wrote file: ${localFilePath}, size=${buffer.length} bytes, exists=${fs.existsSync(localFilePath)}`);
 
                     const relativePath = `uploads/${fileName}`;
                     const jobIdToSend = currentState.jobId;
-                    
-                    // ใช้ Supabase แทน
-            const { error } = await supabase
+                    console.log(`[IMAGE] updating job id=${jobIdToSend} with image_path=${relativePath}`);
+
+                    // ใช้ Supabase แทน (.select() เพื่อให้รู้ว่ามีแถวถูกอัปเดตจริงหรือไม่)
+            const { data: updatedRows, error } = await supabase
                 .from('jobs')
                 .update({ image_path: relativePath })
-                .eq('id', currentState.jobId);
+                .eq('id', currentState.jobId)
+                .select();
+
+            console.log('[IMAGE] supabase update result:', JSON.stringify({ updatedRows, error }));
 
             delete userStates[userId];
             if (error) {
-                await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('error', 'บันทึกรูปไม่สำเร็จ')] });
+                await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('error', 'บันทึกรูปไม่สำเร็จ: ' + error.message)] });
+            } else if (!updatedRows || updatedRows.length === 0) {
+                console.error(`[IMAGE] WARNING: 0 rows updated for job id=${jobIdToSend}. Possible RLS policy block or wrong id.`);
+                await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('error', `บันทึกรูปไม่สำเร็จ: ไม่พบงาน id=${jobIdToSend} ใน database (อาจถูก RLS บล็อก)`)] });
             } else {
                 await sendJobSummaryAfterImage(userId, event.replyToken, currentState.jobId);
             }
