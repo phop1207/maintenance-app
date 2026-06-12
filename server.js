@@ -617,10 +617,41 @@ app.post('/webhook', async (req, res) => {
                 const localFilePath = path.join(uploadDir, fileName);
 
                 try {
-                    const stream = await blobClient.getMessageContent(messageId);
-                    const writer = fs.createWriteStream(localFilePath);
-                    stream.pipe(writer);
-                    await new Promise((resolve, reject) => { writer.on('finish', resolve); writer.on('error', reject); });
+                    const content = await blobClient.getMessageContent(messageId);
+
+                    // @line/bot-sdk v11 ใช้ fetch ภายใน ทำให้ getMessageContent
+                    // อาจคืนค่าเป็น Buffer, Web ReadableStream หรือ Node.js Readable
+                    // ขึ้นอยู่กับเวอร์ชัน จึงต้องแปลงให้เป็น Buffer ก่อนเขียนไฟล์เสมอ
+                    let buffer;
+                    if (Buffer.isBuffer(content)) {
+                        buffer = content;
+                    } else if (typeof content.arrayBuffer === 'function') {
+                        // Web ReadableStream / Response-like object
+                        buffer = Buffer.from(await content.arrayBuffer());
+                    } else if (typeof content.getReader === 'function') {
+                        // Web ReadableStream (Streams API)
+                        const reader = content.getReader();
+                        const chunks = [];
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            chunks.push(Buffer.from(value));
+                        }
+                        buffer = Buffer.concat(chunks);
+                    } else if (typeof content.pipe === 'function') {
+                        // Node.js Readable stream (เวอร์ชันเก่า)
+                        const chunks = [];
+                        await new Promise((resolve, reject) => {
+                            content.on('data', (chunk) => chunks.push(chunk));
+                            content.on('end', resolve);
+                            content.on('error', reject);
+                        });
+                        buffer = Buffer.concat(chunks);
+                    } else {
+                        throw new Error('ไม่รู้จักรูปแบบข้อมูลที่ได้รับจาก LINE');
+                    }
+
+                    fs.writeFileSync(localFilePath, buffer);
 
                     const relativePath = `uploads/${fileName}`;
                     const jobIdToSend = currentState.jobId;
@@ -759,9 +790,10 @@ app.post('/webhook', async (req, res) => {
 // ─────────────────────────────────────────────
 
 async function saveJobToDatabase(currentState, userId, replyToken) {
-    const now = new Date();
+    // ปรับเวลาเป็นเขตเวลาไทย (UTC+7) เพราะ new Date() จะเป็นเวลา UTC
+    const now = new Date(Date.now() + 7 * 60 * 60 * 1000);
     const date = now.toISOString().split('T')[0]; // รูปแบบ YYYY-MM-DD
-    const time = now.toTimeString().split(' ')[0].substring(0, 5); // รูปแบบ HH:MM
+    const time = now.toISOString().split('T')[1].substring(0, 5); // รูปแบบ HH:MM
 
     const { shop_brand, shop_name, branch_code, branch_name, job_type, repair_detail } = currentState;
 
