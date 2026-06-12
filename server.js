@@ -674,6 +674,11 @@ app.post('/webhook', async (req, res) => {
                         makeAlertFlex('error', 'บอทไม่สามารถดาวน์โหลดไฟล์รูปได้ กรุณาลองส่งใหม่อีกครั้งครับ')
                     ]});
                 }
+            } else {
+                // ได้รับรูปแต่ไม่ได้อยู่ในสถานะรอรูป (เช่น ยังไม่ได้บันทึกข้อมูลงาน หรือ state หาย)
+                await client.replyMessage({ replyToken: event.replyToken, messages: [
+                    makeAlertFlex('warning', 'บอทยังไม่พร้อมรับรูปภาพในขณะนี้ กรุณาพิมพ์ "เริ่มต้น" เพื่อเริ่มบันทึกงานใหม่ครับ')
+                ]});
             }
             continue;
         }
@@ -769,7 +774,7 @@ app.post('/webhook', async (req, res) => {
                     await client.replyMessage({ replyToken: event.replyToken, messages: [makeRepairDetailFlex()] });
                 } else {
                     currentState.repair_detail = '';
-                    saveJobToDatabase(currentState, userId, event.replyToken);
+                    await saveJobToDatabase(currentState, userId, event.replyToken);
                 }
                 continue;
             }
@@ -777,7 +782,7 @@ app.post('/webhook', async (req, res) => {
             // รอรายละเอียดซ่อม
             if (currentState.step === 'AWAITING_REPAIR_DETAIL') {
                 currentState.repair_detail = text;
-                saveJobToDatabase(currentState, userId, event.replyToken);
+                await saveJobToDatabase(currentState, userId, event.replyToken);
                 continue;
             }
         }
