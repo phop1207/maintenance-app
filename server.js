@@ -33,47 +33,13 @@ app.use(express.static(path.resolve(__dirname, 'public')));
 const uploadDir = path.resolve(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadDir)) { fs.mkdirSync(uploadDir, { recursive: true }); }
 
-// ─────────────────────────────────────────────
-// Supabase Storage สำหรับเก็บรูปภาพ (แทนการเก็บไฟล์ใน local disk
-// ซึ่งจะหายไปทุกครั้งที่ Render restart/redeploy)
-// ─────────────────────────────────────────────
-const STORAGE_BUCKET = 'job-images';
-
-/** อัปโหลด buffer ขึ้น Supabase Storage แล้วคืน public URL */
-async function uploadImageToStorage(buffer, fileName, contentType = 'image/jpeg') {
-    const { error } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(fileName, buffer, { contentType, upsert: true });
-
-    if (error) throw error;
-
-    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fileName);
-    return data.publicUrl;
-}
-
-/** ลบไฟล์จาก Supabase Storage โดยรับ image_path ที่เก็บไว้ (อาจเป็น public URL หรือ path เก่าแบบ local) */
-async function deleteImageFromStorage(imagePath) {
-    if (!imagePath) return;
-    try {
-        if (imagePath.startsWith('http')) {
-            // ดึงชื่อไฟล์ออกจาก public URL: .../object/public/<bucket>/<fileName>
-            const marker = `/${STORAGE_BUCKET}/`;
-            const idx = imagePath.indexOf(marker);
-            if (idx === -1) return;
-            const fileName = imagePath.substring(idx + marker.length);
-            const { error } = await supabase.storage.from(STORAGE_BUCKET).remove([fileName]);
-            if (error) console.error('[STORAGE] ลบไฟล์ไม่สำเร็จ:', error.message);
-        } else {
-            // path เก่าที่เก็บใน local disk
-            const absolutePath = path.resolve(__dirname, 'public', imagePath);
-            if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
-        }
-    } catch (err) {
-        console.error('[STORAGE] เกิดข้อผิดพลาดตอนลบไฟล์รูปภาพ:', err.message);
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) { cb(null, uploadDir); },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'web-' + uniqueSuffix + path.extname(file.originalname));
     }
-}
-
-const storage = multer.memoryStorage();
+});
 const upload = multer({ storage: storage });
 
 
@@ -528,15 +494,7 @@ app.get('/api/jobs', async (req, res) => {
 
 app.post('/api/jobs', upload.single('image'), async (req, res) => {
     const { date, time, shop_brand, shop_name, branch_code, branch_name, job_type, repair_detail } = req.body;
-    let image_path = '';
-    if (req.file) {
-        const fileName = `web-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
-        try {
-            image_path = await uploadImageToStorage(req.file.buffer, fileName, req.file.mimetype);
-        } catch (err) {
-            return res.status(500).json({ error: 'อัปโหลดรูปไม่สำเร็จ: ' + err.message });
-        }
-    }
+    const image_path = req.file ? 'uploads/' + req.file.filename : '';
 
     const { data, error } = await supabase.from('jobs').insert([{
         date, time,
@@ -556,18 +514,7 @@ app.post('/api/jobs', upload.single('image'), async (req, res) => {
 app.put('/api/jobs/:id', upload.single('image'), async (req, res) => {
     const { id } = req.params;
     let updateData = { ...req.body };
-    if (req.file) {
-        const fileName = `web-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
-        try {
-            updateData.image_path = await uploadImageToStorage(req.file.buffer, fileName, req.file.mimetype);
-        } catch (err) {
-            return res.status(500).json({ error: 'อัปโหลดรูปไม่สำเร็จ: ' + err.message });
-        }
-
-        // ลบรูปเก่าทิ้ง (ถ้ามี) เพื่อไม่ให้ Storage รก
-        const { data: oldJob } = await supabase.from('jobs').select('image_path').eq('id', id).single();
-        if (oldJob && oldJob.image_path) await deleteImageFromStorage(oldJob.image_path);
-    }
+    if (req.file) updateData.image_path = 'uploads/' + req.file.filename;
 
     const { error } = await supabase.from('jobs').update(updateData).eq('id', id);
     if (error) return res.status(500).json({ error: error.message });
@@ -575,9 +522,6 @@ app.put('/api/jobs/:id', upload.single('image'), async (req, res) => {
 });
 
 app.delete('/api/jobs/:id', async (req, res) => {
-    const { data: job } = await supabase.from('jobs').select('image_path').eq('id', req.params.id).single();
-    if (job && job.image_path) await deleteImageFromStorage(job.image_path);
-
     const { error } = await supabase.from('jobs').delete().eq('id', req.params.id);
     if (error) return res.status(500).json({ error: error.message });
     res.json({ message: 'Deleted successfully' });
@@ -599,10 +543,15 @@ app.delete('/api/jobs/danger/range', async (req, res) => {
         if (selectError) throw selectError;
 
         if (rows) {
-            for (const row of rows) {
-                await deleteImageFromStorage(row.image_path);
-            }
+            rows.forEach(row => {
+                if (row.image_path) {
+                    const absolutePath = path.resolve(__dirname, 'public', row.image_path);
+                    if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
+                }
+            });
         }
+
+        // 2. สั่งลบข้อมูลใน Supabase
         const { error: deleteError } = await supabase
             .from('jobs')
             .delete()
@@ -628,10 +577,15 @@ app.delete('/api/jobs/danger/all', async (req, res) => {
         if (selectError) throw selectError;
 
         if (rows) {
-            for (const row of rows) {
-                await deleteImageFromStorage(row.image_path);
-            }
+            rows.forEach(row => {
+                if (row.image_path) {
+                    const absolutePath = path.resolve(__dirname, 'public', row.image_path);
+                    if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
+                }
+            });
         }
+
+        // 2. ลบข้อมูลทั้งหมดในตาราง jobs
         const { error: deleteError } = await supabase
             .from('jobs')
             .delete()
@@ -660,6 +614,7 @@ app.post('/webhook', async (req, res) => {
             if (currentState && currentState.step === 'AWAITING_IMAGE') {
                 const messageId = event.message.id;
                 const fileName = `job_${currentState.jobId}_${Date.now()}.jpg`;
+                const localFilePath = path.join(uploadDir, fileName);
 
                 try {
                     const content = await blobClient.getMessageContent(messageId);
@@ -696,20 +651,10 @@ app.post('/webhook', async (req, res) => {
                         throw new Error('ไม่รู้จักรูปแบบข้อมูลที่ได้รับจาก LINE');
                     }
 
-                    let publicUrl;
-                    try {
-                        publicUrl = await uploadImageToStorage(buffer, fileName, 'image/jpeg');
-                        console.log(`[IMAGE] uploaded to Supabase Storage: ${publicUrl}, size=${buffer.length} bytes`);
-                    } catch (storageErr) {
-                        console.error('[IMAGE] Supabase Storage upload error:', storageErr);
-                        delete userStates[userId];
-                        await client.replyMessage({ replyToken: event.replyToken, messages: [
-                            makeAlertFlex('error', 'อัปโหลดรูปไป Storage ไม่สำเร็จ: ' + storageErr.message)
-                        ]});
-                        continue;
-                    }
+                    fs.writeFileSync(localFilePath, buffer);
+                    console.log(`[IMAGE] wrote file: ${localFilePath}, size=${buffer.length} bytes, exists=${fs.existsSync(localFilePath)}`);
 
-                    const relativePath = publicUrl;
+                    const relativePath = `uploads/${fileName}`;
                     const jobIdToSend = currentState.jobId;
                     console.log(`[IMAGE] updating job id=${jobIdToSend} with image_path=${relativePath}`);
 
