@@ -241,7 +241,7 @@ function makeGreetingAndShopFlex(displayName) {
             }
         }
     };
-
+}
 
 /** Flex: ปุ่มเลือกร้านสำหรับเริ่มงานครั้งต่อไป */
 function makeShopSelectorFlex() {
