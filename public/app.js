@@ -85,8 +85,8 @@ function initAfterLogin() {
     if (currentUser.role === 'admin') {
         document.getElementById('col-technician').style.display = '';
         document.getElementById('filter-user').style.display = '';
+        document.getElementById('nav-admin').style.display = '';
         loadUserFilterOptions();
-        // ซ่อนปุ่มลบสำหรับ admin ไม่ต้องซ่อน (admin เห็นได้)
     }
 
     fetchJobs();
@@ -526,3 +526,181 @@ document.getElementById('btn-cancel').addEventListener('click', () => {
     document.getElementById('btn-cancel').style.display = 'none';
     switchPage('table');
 });
+// ─────────────────────────────────────────────
+// Profile Page
+// ─────────────────────────────────────────────
+function renderProfilePage() {
+    if (!currentUser) return;
+    document.getElementById('profile-display-name').textContent = currentUser.display_name || currentUser.username;
+    document.getElementById('profile-username').textContent = '@' + currentUser.username;
+    const roleEl = document.getElementById('profile-role-badge');
+    roleEl.textContent = currentUser.role === 'admin' ? '👑 Admin' : '👤 User';
+    roleEl.className = 'profile-role ' + (currentUser.role === 'admin' ? 'role-admin' : 'role-user');
+}
+
+// เปลี่ยน PIN
+document.getElementById('btn-change-pin').addEventListener('click', async () => {
+    const oldPin = document.getElementById('old-pin').value.trim();
+    const newPin = document.getElementById('new-pin').value.trim();
+    const confirmPin = document.getElementById('confirm-pin').value.trim();
+    const successEl = document.getElementById('pin-success');
+    const errorEl = document.getElementById('pin-error');
+
+    successEl.style.display = 'none';
+    errorEl.style.display = 'none';
+
+    if (!oldPin || !newPin || !confirmPin) {
+        errorEl.textContent = '⚠️ กรุณากรอกข้อมูลให้ครบทุกช่อง';
+        errorEl.style.display = 'block'; return;
+    }
+    if (newPin !== confirmPin) {
+        errorEl.textContent = '❌ PIN ใหม่ทั้งสองช่องไม่ตรงกัน';
+        errorEl.style.display = 'block'; return;
+    }
+    if (!/^\d{4,6}$/.test(newPin)) {
+        errorEl.textContent = '❌ PIN ต้องเป็นตัวเลข 4-6 หลักเท่านั้น';
+        errorEl.style.display = 'block'; return;
+    }
+
+    try {
+        const res = await fetch('/api/auth/change-pin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: currentUser.id, old_pin: oldPin, new_pin: newPin })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            errorEl.textContent = '❌ ' + (data.error || 'เปลี่ยน PIN ไม่สำเร็จ');
+            errorEl.style.display = 'block';
+        } else {
+            successEl.textContent = '✅ ' + data.message;
+            successEl.style.display = 'block';
+            document.getElementById('old-pin').value = '';
+            document.getElementById('new-pin').value = '';
+            document.getElementById('confirm-pin').value = '';
+        }
+    } catch (e) {
+        errorEl.textContent = '❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+        errorEl.style.display = 'block';
+    }
+});
+
+// Override switchPage เพื่อ render profile เมื่อเปิดหน้านั้น
+const _origSwitchPage = window.switchPage;
+window.switchPage = function(pageTarget) {
+    _origSwitchPage(pageTarget);
+    if (pageTarget === 'profile') renderProfilePage();
+};
+
+// ─────────────────────────────────────────────
+// Admin Panel
+// ─────────────────────────────────────────────
+let adminUsers = [];
+let resetTargetUserId = null;
+
+async function loadAdminPanel() {
+    const res = await fetch('/api/admin/users');
+    if (!res.ok) return;
+    adminUsers = await res.json();
+
+    // Stats
+    document.getElementById('admin-stat-total').textContent = adminUsers.length;
+    document.getElementById('admin-stat-admin').textContent = adminUsers.filter(u => u.role === 'admin').length;
+    document.getElementById('admin-stat-user').textContent = adminUsers.filter(u => u.role === 'user').length;
+    document.getElementById('admin-stat-line').textContent = adminUsers.filter(u => u.has_line).length;
+
+    // Render cards
+    const container = document.getElementById('admin-user-list');
+    if (!adminUsers.length) {
+        container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px;">ไม่พบผู้ใช้งาน</div>';
+        return;
+    }
+
+    container.innerHTML = adminUsers.map(u => `
+        <div class="admin-user-card ${u.role === 'admin' ? 'card-admin' : ''}">
+            <div class="auc-top">
+                <div class="auc-avatar">${u.role === 'admin' ? '👑' : '👤'}</div>
+                <div class="auc-info">
+                    <div class="auc-name">${u.display_name || u.username}</div>
+                    <div class="auc-meta">@${u.username} &nbsp;·&nbsp; ${u.job_count} งาน &nbsp;·&nbsp; ${u.has_line ? '🟢 มี LINE' : '⚪ ไม่มี LINE'}</div>
+                </div>
+                <span class="auc-role-badge ${u.role === 'admin' ? 'role-admin' : 'role-user'}">
+                    ${u.role === 'admin' ? 'Admin' : 'User'}
+                </span>
+            </div>
+            <div class="auc-actions">
+                <button class="btn btn-edit" onclick="toggleRole(${u.id}, '${u.role}')">
+                    ${u.role === 'admin' ? '⬇️ ลด Role' : '⬆️ เพิ่มเป็น Admin'}
+                </button>
+                <button class="btn btn-secondary" onclick="openResetModal(${u.id}, '${u.display_name || u.username}')">
+                    🔑 รีเซ็ต PIN
+                </button>
+                ${u.id !== currentUser.id ? `<button class="btn btn-delete" onclick="deleteUser(${u.id}, '${u.display_name || u.username}')">🗑️ ลบ</button>` : '<span style="font-size:0.75rem;color:var(--text-muted);">(ตัวเอง)</span>'}
+            </div>
+        </div>
+    `).join('');
+}
+
+window.toggleRole = async function(userId, currentRole) {
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    if (!confirm(`ยืนยันเปลี่ยน role เป็น "${newRole}" ใช่ไหมครับ?`)) return;
+    const res = await fetch(`/api/admin/users/${userId}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole })
+    });
+    const data = await res.json();
+    if (res.ok) loadAdminPanel();
+    else alert('❌ ' + data.error);
+};
+
+window.openResetModal = function(userId, name) {
+    resetTargetUserId = userId;
+    document.getElementById('modal-reset-user-name').textContent = `ผู้ใช้: ${name}`;
+    document.getElementById('modal-new-pin').value = '';
+    document.getElementById('modal-reset-error').style.display = 'none';
+    document.getElementById('modal-reset-pin').style.display = 'flex';
+};
+
+window.closeResetModal = function(e) {
+    if (e && e.target !== document.getElementById('modal-reset-pin')) return;
+    document.getElementById('modal-reset-pin').style.display = 'none';
+    resetTargetUserId = null;
+};
+
+window.confirmResetPin = async function() {
+    const newPin = document.getElementById('modal-new-pin').value.trim();
+    const errEl = document.getElementById('modal-reset-error');
+    if (!/^\d{4,6}$/.test(newPin)) {
+        errEl.textContent = 'PIN ต้องเป็นตัวเลข 4-6 หลัก';
+        errEl.style.display = 'block'; return;
+    }
+    const res = await fetch(`/api/admin/users/${resetTargetUserId}/reset-pin`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_pin: newPin })
+    });
+    const data = await res.json();
+    if (res.ok) {
+        document.getElementById('modal-reset-pin').style.display = 'none';
+        alert(`✅ ${data.message}`);
+    } else {
+        errEl.textContent = '❌ ' + data.error;
+        errEl.style.display = 'block';
+    }
+};
+
+window.deleteUser = async function(userId, name) {
+    if (!confirm(`⚠️ ยืนยันลบผู้ใช้ "${name}" ออกจากระบบ?\n\nข้อมูลงานของผู้ใช้นี้จะยังคงอยู่ แต่จะไม่ถูกผูกกับใคร`)) return;
+    const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) { loadAdminPanel(); fetchJobs(); }
+    else alert('❌ ' + data.error);
+};
+
+// Override switchPage to trigger admin load
+const _origSwitchPage2 = window.switchPage;
+window.switchPage = function(pageTarget) {
+    _origSwitchPage2(pageTarget);
+    if (pageTarget === 'admin' && currentUser && currentUser.role === 'admin') loadAdminPanel();
+};

@@ -139,6 +139,110 @@ function makeWelcomeFlex() {
     };
 }
 
+/** Flex: ทักทาย user พร้อมแสดงข้อมูล + ปุ่มเลือกร้าน */
+function makeGreetingAndShopFlex(displayName) {
+    const now = new Date(Date.now() + 7 * 60 * 60 * 1000);
+    const hour = now.getUTCHours();
+    let greeting = '🌅 สวัสดีตอนเช้า';
+    if (hour >= 12 && hour < 17) greeting = '🌞 สวัสดีตอนบ่าย';
+    else if (hour >= 17) greeting = '🌙 สวัสดีตอนเย็น';
+
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toISOString().split('T')[1].substring(0, 5);
+
+    return {
+        type: 'flex',
+        altText: `${greeting} คุณ${displayName} เลือกร้านค้าเพื่อเริ่มบันทึกงาน`,
+        contents: {
+            type: 'bubble',
+            header: {
+                type: 'box', layout: 'vertical',
+                backgroundColor: '#2f3542', paddingAll: '14px',
+                contents: [
+                    { type: 'text', text: `${greeting}!`, weight: 'bold', size: 'md', color: '#ffffff', align: 'center' },
+                    { type: 'text', text: `คุณ ${displayName}`, size: 'lg', weight: 'bold', color: '#f1c40f', align: 'center', margin: 'xs' }
+                ]
+            },
+            body: {
+                type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '14px',
+                contents: [
+                    {
+                        type: 'box', layout: 'horizontal', spacing: 'sm',
+                        contents: [
+                            {
+                                type: 'box', layout: 'vertical', flex: 1,
+                                backgroundColor: '#f8f9fa', cornerRadius: '8px', paddingAll: '8px',
+                                contents: [
+                                    { type: 'text', text: '📅 วันที่', size: 'xxs', color: '#888888' },
+                                    { type: 'text', text: dateStr, size: 'sm', weight: 'bold', color: '#2c3e50', margin: 'xs' }
+                                ]
+                            },
+                            {
+                                type: 'box', layout: 'vertical', flex: 1,
+                                backgroundColor: '#f8f9fa', cornerRadius: '8px', paddingAll: '8px',
+                                contents: [
+                                    { type: 'text', text: '⏰ เวลา', size: 'xxs', color: '#888888' },
+                                    { type: 'text', text: timeStr + ' น.', size: 'sm', weight: 'bold', color: '#2c3e50', margin: 'xs' }
+                                ]
+                            }
+                        ]
+                    },
+                    { type: 'separator', margin: 'md' },
+                    { type: 'text', text: '🏪 เลือกร้านค้าที่เข้าทำงาน', size: 'sm', weight: 'bold', color: '#2f3542', margin: 'md' },
+                    {
+                        type: 'box', layout: 'horizontal', spacing: 'md', margin: 'sm',
+                        contents: [
+                            { type: 'button', flex: 1, style: 'primary', color: '#e74c3c', action: { type: 'message', label: '🍲 MK', text: 'mk' } },
+                            { type: 'button', flex: 1, style: 'primary', color: '#2ecc71', action: { type: 'message', label: '🍖 BBQ', text: 'bbq' } }
+                        ]
+                    },
+                    {
+                        type: 'box', layout: 'horizontal', spacing: 'md', margin: 'sm',
+                        contents: [
+                            { type: 'button', flex: 1, style: 'primary', color: '#e67e22', action: { type: 'message', label: '🍱 Fuji', text: 'Fuji' } },
+                            { type: 'button', flex: 1, style: 'primary', color: '#f1c40f', action: { type: 'message', label: '🍜 Lucky Suki', text: 'Lucky Suki' } }
+                        ]
+                    }
+                ]
+            },
+            footer: {
+                type: 'box', layout: 'vertical', backgroundColor: '#f8f9fa', paddingAll: '12px',
+                contents: [{ type: 'text', text: '💡 หรือพิมพ์ชื่อร้านเองได้เลยครับ', size: 'xxs', color: '#888888', align: 'center' }]
+            }
+        }
+    };
+}
+    return {
+        type: 'flex',
+        altText: 'ยินดีต้อนรับ กรุณาพิมพ์ "เริ่มต้น" เพื่อเริ่มใช้งาน',
+        contents: {
+            type: 'bubble',
+            header: {
+                type: 'box', layout: 'vertical',
+                backgroundColor: '#2f3542',
+                paddingAll: '14px',
+                contents: [
+                    { type: 'text', text: '🏪 ยินดีต้อนรับ', weight: 'bold', size: 'lg', color: '#ffffff', align: 'center' }
+                ]
+            },
+            body: {
+                type: 'box', layout: 'vertical', spacing: 'md', paddingAll: '14px',
+                contents: [
+                    {
+                        type: 'box', layout: 'vertical', alignItems: 'center',
+                        contents: [
+                            { type: 'text', text: '👋', size: 'xl', align: 'center' },
+                            { type: 'text', text: 'กรุณาพิมพ์คำว่า', size: 'sm', color: '#888888', align: 'center', margin: 'md' },
+                            { type: 'text', text: '"เริ่มต้น"', size: 'lg', weight: 'bold', color: '#27ae60', align: 'center', margin: 'xs' },
+                            { type: 'text', text: 'เพื่อเริ่มบันทึกงาน', size: 'sm', color: '#888888', align: 'center', margin: 'xs' }
+                        ]
+                    }
+                ]
+            }
+        }
+    };
+}
+
 /** Flex: ปุ่มเลือกร้านสำหรับเริ่มงานครั้งต่อไป */
 function makeShopSelectorFlex() {
     return {
@@ -662,6 +766,88 @@ app.post('/api/auth/login', async (req, res) => {
     });
 });
 
+// เปลี่ยน PIN (ต้องใส่ PIN เก่าก่อน)
+app.post('/api/auth/change-pin', async (req, res) => {
+    const { user_id, old_pin, new_pin } = req.body;
+    if (!user_id || !old_pin || !new_pin) 
+        return res.status(400).json({ error: 'ข้อมูลไม่ครบ' });
+    if (!/^\d{4,6}$/.test(new_pin))
+        return res.status(400).json({ error: 'PIN ใหม่ต้องเป็นตัวเลข 4-6 หลักเท่านั้น' });
+
+    const { data: user, error } = await supabase
+        .from('users').select('pin').eq('id', user_id).single();
+
+    if (error || !user) return res.status(404).json({ error: 'ไม่พบผู้ใช้' });
+    if (user.pin !== old_pin) return res.status(401).json({ error: 'PIN เก่าไม่ถูกต้อง' });
+
+    const { error: updateErr } = await supabase
+        .from('users').update({ pin: new_pin }).eq('id', user_id);
+
+    if (updateErr) return res.status(500).json({ error: updateErr.message });
+    res.json({ message: 'เปลี่ยน PIN สำเร็จแล้วครับ!' });
+});
+
+// ─────────────────────────────────────────────
+// Admin — จัดการ Users
+// ─────────────────────────────────────────────
+
+// ดูรายชื่อ users ทั้งหมด + จำนวนงาน
+app.get('/api/admin/users', async (req, res) => {
+    const { data: users, error } = await supabase
+        .from('users')
+        .select('id, username, display_name, role, created_at, line_user_id')
+        .order('created_at', { ascending: true });
+    if (error) return res.status(500).json({ error: error.message });
+
+    // นับจำนวนงานของแต่ละ user
+    const { data: jobCounts } = await supabase
+        .from('jobs')
+        .select('user_id');
+
+    const countMap = {};
+    (jobCounts || []).forEach(j => {
+        if (j.user_id) countMap[j.user_id] = (countMap[j.user_id] || 0) + 1;
+    });
+
+    const result = users.map(u => ({
+        ...u,
+        job_count: countMap[u.id] || 0,
+        has_line: !!u.line_user_id
+    }));
+    res.json(result);
+});
+
+// แก้ Role
+app.patch('/api/admin/users/:id/role', async (req, res) => {
+    const { role } = req.body;
+    if (!['admin', 'user'].includes(role))
+        return res.status(400).json({ error: 'role ต้องเป็น admin หรือ user เท่านั้น' });
+
+    const { error } = await supabase.from('users').update({ role }).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: `เปลี่ยน role สำเร็จ` });
+});
+
+// รีเซ็ต PIN (admin เท่านั้น — ส่ง PIN ใหม่ไปเลย)
+app.patch('/api/admin/users/:id/reset-pin', async (req, res) => {
+    const newPin = req.body.new_pin || '1234';
+    if (!/^\d{4,6}$/.test(newPin))
+        return res.status(400).json({ error: 'PIN ต้องเป็นตัวเลข 4-6 หลัก' });
+
+    const { error } = await supabase.from('users').update({ pin: newPin }).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: `รีเซ็ต PIN เป็น ${newPin} สำเร็จ` });
+});
+
+// ลบ user (admin เท่านั้น)
+app.delete('/api/admin/users/:id', async (req, res) => {
+    // set null ก่อนลบ เพื่อไม่ให้ jobs reference error
+    await supabase.from('jobs').update({ user_id: null }).eq('user_id', req.params.id);
+    const { error } = await supabase.from('users').delete().eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: 'ลบผู้ใช้สำเร็จ' });
+});
+
 // GET users list (for admin dropdown)
 app.get('/api/auth/users', async (req, res) => {
     const { data, error } = await supabase
@@ -907,6 +1093,79 @@ app.post('/webhook', async (req, res) => {
                 continue;
             }
 
+            // ── เปลี่ยน PIN ──
+            if (text === 'เปลี่ยน pin' || textLower === 'change pin' || textLower === 'เปลี่ยนpin') {
+                delete userStates[userId];
+                userStates[userId] = { step: 'AWAITING_OLD_PIN' };
+                await client.replyMessage({ replyToken: event.replyToken, messages: [{
+                    type: 'flex', altText: 'เปลี่ยน PIN — กรุณาพิมพ์ PIN เก่า',
+                    contents: {
+                        type: 'bubble',
+                        header: { type: 'box', layout: 'vertical', backgroundColor: '#2f3542', paddingAll: '14px',
+                            contents: [{ type: 'text', text: '🔒 เปลี่ยน PIN', weight: 'bold', size: 'lg', color: '#ffffff', align: 'center' }]
+                        },
+                        body: { type: 'box', layout: 'vertical', spacing: 'md', paddingAll: '14px',
+                            contents: [
+                                { type: 'text', text: 'กรุณาพิมพ์ PIN ปัจจุบันของคุณครับ', size: 'sm', color: '#555555', wrap: true },
+                                { type: 'text', text: '(พิมพ์ "ยกเลิก" เพื่อออกจากขั้นตอนนี้)', size: 'xs', color: '#aaaaaa', margin: 'sm' }
+                            ]
+                        }
+                    }
+                }]});
+                continue;
+            }
+
+            // รอ PIN เก่า
+            if (userStates[userId] && userStates[userId].step === 'AWAITING_OLD_PIN') {
+                userStates[userId].old_pin = text;
+                userStates[userId].step = 'AWAITING_NEW_PIN';
+                await client.replyMessage({ replyToken: event.replyToken, messages: [{
+                    type: 'flex', altText: 'กรุณาพิมพ์ PIN ใหม่ (4-6 หลัก)',
+                    contents: {
+                        type: 'bubble',
+                        header: { type: 'box', layout: 'vertical', backgroundColor: '#2980b9', paddingAll: '14px',
+                            contents: [{ type: 'text', text: '🔑 PIN ใหม่', weight: 'bold', size: 'lg', color: '#ffffff', align: 'center' }]
+                        },
+                        body: { type: 'box', layout: 'vertical', spacing: 'md', paddingAll: '14px',
+                            contents: [
+                                { type: 'text', text: 'กรุณาพิมพ์ PIN ใหม่ที่ต้องการ (ตัวเลข 4-6 หลัก) ครับ', size: 'sm', color: '#555555', wrap: true }
+                            ]
+                        }
+                    }
+                }]});
+                continue;
+            }
+
+            // รอ PIN ใหม่ — ยืนยัน
+            if (userStates[userId] && userStates[userId].step === 'AWAITING_NEW_PIN') {
+                if (!/^\d{4,6}$/.test(text)) {
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [
+                        makeAlertFlex('warning', 'PIN ต้องเป็นตัวเลข 4-6 หลักเท่านั้นครับ กรุณาพิมพ์ใหม่')
+                    ]});
+                    continue;
+                }
+                const oldPin = userStates[userId].old_pin;
+                delete userStates[userId];
+
+                // เช็ค PIN เก่าและอัปเดต
+                const { data: userRow } = await supabase.from('users').select('id, pin').eq('line_user_id', userId).single();
+                if (!userRow) {
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('error', 'ไม่พบข้อมูลผู้ใช้ในระบบ')]});
+                    continue;
+                }
+                if (userRow.pin !== oldPin) {
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('error', 'PIN เก่าไม่ถูกต้องครับ กรุณาลองใหม่อีกครั้ง')]});
+                    continue;
+                }
+                const { error: updateErr } = await supabase.from('users').update({ pin: text }).eq('id', userRow.id);
+                if (updateErr) {
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('error', 'เปลี่ยน PIN ไม่สำเร็จ: ' + updateErr.message)]});
+                } else {
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('success', `เปลี่ยน PIN สำเร็จแล้วครับ! PIN ใหม่ของคุณคือ: ${text}`)]});
+                }
+                continue;
+            }
+
             // รอรูปอยู่แต่ส่งข้อความมา
             if (userStates[userId] && userStates[userId].step === 'AWAITING_IMAGE') {
                 await client.replyMessage({ replyToken: event.replyToken, messages: [
@@ -919,7 +1178,8 @@ app.post('/webhook', async (req, res) => {
             if (!userStates[userId]) {
                 // ถ้าพิมพ์ "เริ่มต้น" ให้เริ่มการทำงาน
                 if (text === 'เริ่มต้น' || textLower === 'เริ่มต้น' || text === 'start' || textLower === 'start') {
-                    await client.replyMessage({ replyToken: event.replyToken, messages: [makeShopSelectorFlex()] });
+                    const greetFlex = makeGreetingAndShopFlex(existingUser.display_name || existingUser.username);
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [greetFlex] });
                     continue;
                 }
                 
