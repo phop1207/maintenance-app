@@ -9,6 +9,28 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
+
+    <!-- ════ Login Overlay ════ -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-card">
+            <div class="login-logo">
+                <span>🤖</span>
+                <h2>Job Logger By.PHOP</h2>
+                <p>กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ</p>
+            </div>
+            <div id="login-error" class="login-error" style="display:none;"></div>
+            <div class="form-group">
+                <label for="login-username">👤 Username</label>
+                <input type="text" id="login-username" placeholder="กรอก Username ของคุณ" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="login-pin">🔒 PIN (4 หลัก)</label>
+                <input type="password" id="login-pin" placeholder="กรอก PIN" maxlength="6" inputmode="numeric" autocomplete="current-password">
+            </div>
+            <button id="btn-login" class="btn btn-success" style="width:100%; margin-top:8px;">เข้าสู่ระบบ</button>
+        </div>
+    </div>
+
     <div class="container">
         <header class="app-header">
             <div class="logo-area">
@@ -18,9 +40,16 @@
                     <p class="subtitle">ระบบจัดการและบันทึกงาน</p>
                 </div>
             </div>
-            <button id="theme-toggle" class="btn-theme" aria-label="Toggle Theme">
-                <span id="theme-icon">🌙</span>
-            </button>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div id="user-badge" class="user-badge" style="display:none;">
+                    <span id="user-badge-name"></span>
+                    <span id="user-badge-role"></span>
+                </div>
+                <button id="btn-logout" class="btn-logout" style="display:none;" onclick="logout()">ออกจากระบบ</button>
+                <button id="theme-toggle" class="btn-theme" aria-label="Toggle Theme">
+                    <span id="theme-icon">🌙</span>
+                </button>
+            </div>
         </header>
         
         <div id="page-overview" class="app-page active">
@@ -201,6 +230,10 @@
                     </div>
                     
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <!-- Admin only: filter by user -->
+                        <select id="filter-user" class="custom-select-box" style="display:none; min-width:140px; padding:6px 10px; font-size:0.85rem;" onchange="filterJobs()">
+                            <option value="all">👥 ทุกคน</option>
+                        </select>
                         <button type="button" id="btn-export-excel" class="btn btn-excel" onclick="exportToExcel()">📊 ส่งออก Excel</button>
                         <button type="button" class="btn btn-danger-zone" onclick="dangerDelete('month')">📅 ลบข้อมูลทั้งเดือนนี้</button>
                         <button type="button" class="btn btn-danger-zone" onclick="dangerDelete('all')">⚠️ ลบข้อมูลทั้งหมด</button>
@@ -259,6 +292,7 @@
                             <tr>
                                 <th>วันที่</th>
                                 <th>เวลา</th>
+                                <th id="col-technician" style="display:none;">ช่าง</th>
                                 <th>ร้าน / แบรนด์</th>
                                 <th>รหัสสาขา</th>
                                 <th>ชื่อสาขา</th>

@@ -851,3 +851,79 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 .lightbox-close { position: absolute; top: 20px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; cursor: pointer; transition: 0.2s; }
 .lightbox-close:hover { color: #bbb; }
 #lightbox-caption { margin: auto; display: block; width: 80%; max-width: 700px; text-align: center; color: #ccc; padding: 15px 0; font-size: 1rem; }
+/* ═══════════════════════════════════════
+   Login Overlay
+═══════════════════════════════════════ */
+.login-overlay {
+    position: fixed; inset: 0; z-index: 9000;
+    background: rgba(10, 15, 30, 0.92);
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(6px);
+    transition: opacity 0.3s ease;
+}
+.login-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 36px 32px;
+    width: 100%; max-width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    animation: fadeIn 0.3s ease;
+}
+.login-logo {
+    text-align: center; margin-bottom: 28px;
+}
+.login-logo span {
+    font-size: 2.8rem; display: block; margin-bottom: 8px;
+}
+.login-logo h2 {
+    font-size: 1.15rem; font-weight: 700;
+    color: var(--primary-color); margin-bottom: 4px;
+}
+.login-logo p {
+    font-size: 0.8rem; color: var(--text-muted);
+}
+.login-error {
+    background: #fef2f2; border: 1px solid #fecaca;
+    color: #dc2626; border-radius: 8px;
+    padding: 10px 14px; font-size: 0.85rem;
+    margin-bottom: 16px;
+}
+[data-theme="dark"] .login-error {
+    background: #2d1010; border-color: #7f1d1d; color: #f87171;
+}
+
+/* ═══════════════════════════════════════
+   User Badge & Logout
+═══════════════════════════════════════ */
+.user-badge {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px; padding: 5px 12px;
+}
+#user-badge-name {
+    font-size: 0.82rem; font-weight: 600; color: var(--text-main);
+}
+#user-badge-role {
+    font-size: 0.75rem; color: var(--text-muted);
+    background: var(--code-bg); border-radius: 10px;
+    padding: 1px 7px;
+}
+.btn-logout {
+    background: transparent;
+    border: 1px solid var(--danger-color);
+    color: var(--danger-color);
+    border-radius: 10px; padding: 5px 12px;
+    font-size: 0.8rem; cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.btn-logout:hover {
+    background: var(--danger-color); color: white;
+}
+
+@media (max-width: 480px) {
+    .login-card { margin: 16px; padding: 28px 20px; }
+    .user-badge { display: none; } /* ซ่อน badge บนมือถือเพื่อประหยัดพื้นที่ */
+}

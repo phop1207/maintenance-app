@@ -515,19 +515,8 @@ function getBrandCategory(shopName) {
     return 'Sme';
 }
 
-app.get('/api/jobs', async (req, res) => {
-    const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .order('date', { ascending: false })
-        .order('time', { ascending: false });
-
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
-});
-
 app.post('/api/jobs', upload.single('image'), async (req, res) => {
-    const { date, time, shop_brand, shop_name, branch_code, branch_name, job_type, repair_detail } = req.body;
+    const { date, time, shop_brand, shop_name, branch_code, branch_name, job_type, repair_detail, user_id } = req.body;
     let image_path = '';
     if (req.file) {
         const fileName = `web-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
@@ -546,7 +535,8 @@ app.post('/api/jobs', upload.single('image'), async (req, res) => {
         branch_name: capitalizeTextBackend(branch_name),
         job_type,
         repair_detail: job_type === 'Repair' ? repair_detail : '',
-        image_path
+        image_path,
+        user_id: user_id || null
     }]).select();
 
     if (error) return res.status(500).json({ error: error.message });
@@ -646,6 +636,63 @@ app.delete('/api/jobs/danger/all', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
+// Auth Routes
+// ─────────────────────────────────────────────
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+    const { username, pin } = req.body;
+    if (!username || !pin) return res.status(400).json({ error: 'กรุณากรอก username และ PIN' });
+
+    const { data: user, error } = await supabase
+        .from('users')
+        .select('id, username, display_name, role, pin')
+        .eq('username', username.toLowerCase().trim())
+        .single();
+
+    if (error || !user) return res.status(401).json({ error: 'ไม่พบชื่อผู้ใช้นี้ในระบบ' });
+    if (user.pin !== pin) return res.status(401).json({ error: 'PIN ไม่ถูกต้อง' });
+
+    // ส่งข้อมูล user กลับ (ไม่ส่ง pin)
+    res.json({ 
+        id: user.id,
+        username: user.username,
+        display_name: user.display_name,
+        role: user.role
+    });
+});
+
+// GET users list (for admin dropdown)
+app.get('/api/auth/users', async (req, res) => {
+    const { data, error } = await supabase
+        .from('users')
+        .select('id, username, display_name, role')
+        .order('display_name');
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
+// GET jobs — กรองตาม user (admin เห็นทั้งหมด, user เห็นแค่ตัวเอง)
+app.get('/api/jobs', async (req, res) => {
+    const { user_id, role } = req.query;
+
+    let query = supabase
+        .from('jobs')
+        .select('*, users(display_name, username)')
+        .order('date', { ascending: false })
+        .order('time', { ascending: false });
+
+    // ถ้าไม่ใช่ admin → กรองเฉพาะของตัวเอง
+    if (role !== 'admin' && user_id) {
+        query = query.eq('user_id', user_id);
+    }
+
+    const { data, error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
+// ─────────────────────────────────────────────
 // Webhook
 // ─────────────────────────────────────────────
 
@@ -653,6 +700,106 @@ app.post('/webhook', async (req, res) => {
     const events = req.body.events || [];
     for (const event of events) {
         const userId = event.source.userId;
+
+        // ── ตรวจสอบว่า LINE user นี้ลงทะเบียนแล้วหรือยัง ──
+        const { data: existingUser } = await supabase
+            .from('users')
+            .select('id, display_name, username')
+            .eq('line_user_id', userId)
+            .single();
+
+        // ── ถ้ายังไม่ลงทะเบียน และกำลังรอชื่อ ──
+        if (!existingUser) {
+            if (event.type === 'message' && event.message.type === 'text') {
+                const text = event.message.text.trim();
+
+                // ถ้าอยู่ในสถานะรอชื่อ
+                if (userStates[userId] && userStates[userId].step === 'AWAITING_REGISTER_NAME') {
+                    const displayName = text;
+                    // สร้าง username จากชื่อ (ตัวเล็กไม่มีช่องว่าง) + random 3 ตัว
+                    const baseUsername = text.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9ก-ฮ]/g, '').substring(0, 10);
+                    const username = baseUsername + Math.floor(Math.random() * 900 + 100);
+                    const defaultPin = '1234';
+
+                    const { error: insertError } = await supabase.from('users').insert([{
+                        line_user_id: userId,
+                        display_name: displayName,
+                        username: username,
+                        pin: defaultPin,
+                        role: 'user'
+                    }]);
+
+                    delete userStates[userId];
+
+                    if (insertError) {
+                        await client.replyMessage({ replyToken: event.replyToken, messages: [
+                            makeAlertFlex('error', 'ลงทะเบียนไม่สำเร็จ: ' + insertError.message)
+                        ]});
+                    } else {
+                        await client.replyMessage({ replyToken: event.replyToken, messages: [{
+                            type: 'flex',
+                            altText: `ลงทะเบียนสำเร็จ! ยินดีต้อนรับ ${displayName}`,
+                            contents: {
+                                type: 'bubble',
+                                header: {
+                                    type: 'box', layout: 'vertical',
+                                    backgroundColor: '#27ae60', paddingAll: '14px',
+                                    contents: [{ type: 'text', text: '🎉 ลงทะเบียนสำเร็จ!', weight: 'bold', size: 'lg', color: '#ffffff', align: 'center' }]
+                                },
+                                body: {
+                                    type: 'box', layout: 'vertical', spacing: 'md', paddingAll: '14px',
+                                    contents: [
+                                        { type: 'text', text: `ยินดีต้อนรับ ${displayName}! 👋`, weight: 'bold', size: 'md', wrap: true },
+                                        { type: 'separator', margin: 'md' },
+                                        { type: 'text', text: '📋 ข้อมูลสำหรับเข้าเว็บไซต์', size: 'sm', color: '#888888', margin: 'md' },
+                                        { type: 'box', layout: 'horizontal', margin: 'sm', contents: [
+                                            { type: 'text', text: 'Username:', size: 'sm', color: '#555555', flex: 3 },
+                                            { type: 'text', text: username, size: 'sm', weight: 'bold', color: '#2980b9', flex: 5 }
+                                        ]},
+                                        { type: 'box', layout: 'horizontal', margin: 'xs', contents: [
+                                            { type: 'text', text: 'PIN เริ่มต้น:', size: 'sm', color: '#555555', flex: 3 },
+                                            { type: 'text', text: defaultPin, size: 'sm', weight: 'bold', color: '#e74c3c', flex: 5 }
+                                        ]},
+                                        { type: 'text', text: '⚠️ กรุณาเปลี่ยน PIN หลังเข้าสู่ระบบครั้งแรกครับ', size: 'xxs', color: '#e74c3c', wrap: true, margin: 'md' }
+                                    ]
+                                },
+                                footer: {
+                                    type: 'box', layout: 'vertical', paddingAll: '12px',
+                                    contents: [{ type: 'text', text: 'พิมพ์ "เริ่มต้น" เพื่อเริ่มบันทึกงานได้เลยครับ', size: 'xs', color: '#888888', align: 'center', wrap: true }]
+                                }
+                            }
+                        }]});
+                    }
+                    continue;
+                }
+
+                // ยังไม่ลงทะเบียน + ข้อความอะไรก็ตาม → ขอชื่อก่อน
+                userStates[userId] = { step: 'AWAITING_REGISTER_NAME' };
+                await client.replyMessage({ replyToken: event.replyToken, messages: [{
+                    type: 'flex',
+                    altText: 'ยินดีต้อนรับ! กรุณาลงทะเบียนก่อนใช้งาน',
+                    contents: {
+                        type: 'bubble',
+                        header: {
+                            type: 'box', layout: 'vertical',
+                            backgroundColor: '#2f3542', paddingAll: '14px',
+                            contents: [{ type: 'text', text: '👋 ยินดีต้อนรับ!', weight: 'bold', size: 'lg', color: '#ffffff', align: 'center' }]
+                        },
+                        body: {
+                            type: 'box', layout: 'vertical', spacing: 'md', paddingAll: '14px',
+                            contents: [
+                                { type: 'text', text: 'ดูเหมือนว่าคุณยังไม่เคยใช้งานระบบนี้มาก่อนครับ', size: 'sm', color: '#555555', wrap: true },
+                                { type: 'separator', margin: 'md' },
+                                { type: 'text', text: '📝 กรุณาพิมพ์ชื่อของคุณเพื่อลงทะเบียน', size: 'sm', weight: 'bold', color: '#2f3542', wrap: true, margin: 'md' },
+                                { type: 'text', text: 'เช่น: สมชาย หรือ Somchai', size: 'xs', color: '#888888', margin: 'sm' }
+                            ]
+                        }
+                    }
+                }]});
+                continue;
+            }
+            continue; // event อื่น (sticker, follow ฯลฯ) ถ้ายังไม่ลงทะเบียน ข้ามไป
+        }
 
         // ── รับรูปภาพ ──────────────────────────────────
         if (event.type === 'message' && event.message.type === 'image') {
@@ -858,29 +1005,29 @@ app.post('/webhook', async (req, res) => {
 // ─────────────────────────────────────────────
 
 async function saveJobToDatabase(currentState, userId, replyToken) {
-    // ปรับเวลาเป็นเขตเวลาไทย (UTC+7) เพราะ new Date() จะเป็นเวลา UTC
     const now = new Date(Date.now() + 7 * 60 * 60 * 1000);
-    const date = now.toISOString().split('T')[0]; // รูปแบบ YYYY-MM-DD
-    const time = now.toISOString().split('T')[1].substring(0, 5); // รูปแบบ HH:MM
+    const date = now.toISOString().split('T')[0];
+    const time = now.toISOString().split('T')[1].substring(0, 5);
 
     const { shop_brand, shop_name, branch_code, branch_name, job_type, repair_detail } = currentState;
 
+    // หา user_id จาก line_user_id
+    const { data: userRow } = await supabase
+        .from('users')
+        .select('id')
+        .eq('line_user_id', userId)
+        .single();
+    const dbUserId = userRow ? userRow.id : null;
+
     try {
-        // ใช้ supabase แทน db.run
         const { data, error } = await supabase
             .from('jobs')
             .insert([{ 
-                date, 
-                time, 
-                shop_brand, 
-                shop_name, 
-                branch_code, 
-                branch_name, 
-                job_type, 
-                repair_detail, 
-                image_path: '' // เราจะอัปเดตค่านี้หลังจากอัปโหลดรูป
+                date, time, shop_brand, shop_name, branch_code, branch_name, 
+                job_type, repair_detail, image_path: '',
+                user_id: dbUserId
             }])
-            .select(); // เพื่อให้ได้ ID ของงานที่เพิ่งบันทึกกลับมา
+            .select();
 
         if (error) throw error;
 

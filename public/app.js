@@ -1,9 +1,128 @@
+// ─────────────────────────────────────────────
+// Session Management
+// ─────────────────────────────────────────────
+let currentUser = null; // { id, username, display_name, role }
+
+function getSession() {
+    try {
+        const s = sessionStorage.getItem('joblogger_user');
+        return s ? JSON.parse(s) : null;
+    } catch { return null; }
+}
+
+function setSession(user) {
+    sessionStorage.setItem('joblogger_user', JSON.stringify(user));
+    currentUser = user;
+}
+
+function clearSession() {
+    sessionStorage.removeItem('joblogger_user');
+    currentUser = null;
+}
+
+function logout() {
+    clearSession();
+    location.reload();
+}
+
+// ─────────────────────────────────────────────
+// Login Handler
+// ─────────────────────────────────────────────
+document.getElementById('btn-login').addEventListener('click', async () => {
+    const username = document.getElementById('login-username').value.trim();
+    const pin = document.getElementById('login-pin').value.trim();
+    const errorEl = document.getElementById('login-error');
+
+    if (!username || !pin) {
+        errorEl.textContent = '⚠️ กรุณากรอก Username และ PIN ครับ';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, pin })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            errorEl.textContent = '❌ ' + (data.error || 'เข้าสู่ระบบไม่สำเร็จ');
+            errorEl.style.display = 'block';
+            return;
+        }
+        setSession(data);
+        initAfterLogin();
+    } catch (e) {
+        errorEl.textContent = '❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+        errorEl.style.display = 'block';
+    }
+});
+
+// Enter key on PIN field
+document.getElementById('login-pin').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btn-login').click();
+});
+
+// ─────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────
+function initAfterLogin() {
+    const overlay = document.getElementById('login-overlay');
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.style.display = 'none', 300);
+
+    // แสดง user badge
+    const badge = document.getElementById('user-badge');
+    const badgeName = document.getElementById('user-badge-name');
+    const badgeRole = document.getElementById('user-badge-role');
+    badgeName.textContent = currentUser.display_name || currentUser.username;
+    badgeRole.textContent = currentUser.role === 'admin' ? '👑 Admin' : '👤 User';
+    badge.style.display = 'flex';
+    document.getElementById('btn-logout').style.display = 'inline-flex';
+
+    // Admin → แสดงคอลัมน์ช่าง + dropdown filter user
+    if (currentUser.role === 'admin') {
+        document.getElementById('col-technician').style.display = '';
+        document.getElementById('filter-user').style.display = '';
+        loadUserFilterOptions();
+        // ซ่อนปุ่มลบสำหรับ admin ไม่ต้องซ่อน (admin เห็นได้)
+    }
+
+    fetchJobs();
+}
+
+async function loadUserFilterOptions() {
+    // ดึง users ทั้งหมดมาใส่ใน dropdown (admin เท่านั้น)
+    const res = await fetch('/api/auth/users');
+    if (!res.ok) return;
+    const users = await res.json();
+    const sel = document.getElementById('filter-user');
+    users.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.id;
+        opt.textContent = u.display_name || u.username;
+        sel.appendChild(opt);
+    });
+}
+
+// Check session on page load
+window.addEventListener('DOMContentLoaded', () => {
+    const session = getSession();
+    if (session) {
+        currentUser = session;
+        initAfterLogin();
+    }
+    // else: overlay stays visible, waiting for login
+});
+
+// ─────────────────────────────────────────────
+// API & Data
+// ─────────────────────────────────────────────
 const API_URL = '/api/jobs';
 let allJobs = [];
 let currentFilteredJobs = [];
 
-// คืน URL ของรูปภาพ: ถ้าเป็น public URL ของ Supabase Storage (เริ่มด้วย http) ใช้ตรงๆ
-// ถ้าเป็น path เก่าแบบ local (เช่น "uploads/xxx.jpg") ให้เติม "/" นำหน้า
 function resolveImageUrl(imagePath) {
     if (!imagePath) return '';
     return imagePath.startsWith('http') ? imagePath : '/' + imagePath;
@@ -82,11 +201,16 @@ window.switchPage = function(pageTarget) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-document.addEventListener('DOMContentLoaded', fetchJobs);
+document.addEventListener('DOMContentLoaded', () => {}); // handled by initAfterLogin
 
 async function fetchJobs() {
+    if (!currentUser) return;
     try {
-        const response = await fetch(API_URL);
+        const params = new URLSearchParams({
+            user_id: currentUser.id,
+            role: currentUser.role
+        });
+        const response = await fetch(`${API_URL}?${params}`);
         allJobs = await response.json();
         currentFilteredJobs = [...allJobs];
         filterJobs(); 
@@ -179,10 +303,14 @@ function renderTable(jobs) {
             displayJobType = 'Installation';
         }
 
+        const techName = job.users ? (job.users.display_name || job.users.username) : '-';
+        const isAdmin = currentUser && currentUser.role === 'admin';
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><b>${job.date}</b></td>
             <td><span style="color: var(--text-muted);">${job.time}</span></td>
+            ${isAdmin ? `<td style="font-size:0.82rem; color:var(--text-muted);">${techName}</td>` : ''}
             <td><span class="custom-badge ${brandClass}">${capitalizeText(job.shop_name)}</span></td>
             <td><code>${job.branch_code ? job.branch_code.toUpperCase() : '-'}</code></td>
             <td>${capitalizeText(job.branch_name)}</td>
@@ -214,7 +342,9 @@ window.setQuickFilter = function(filterCategory, filterValue) {
 
 function filterJobs() {
     const query = searchInput.value.toLowerCase().trim();
-    const startDate = startDateInput.value; const endDate = endDateInput.value;     
+    const startDate = startDateInput.value; const endDate = endDateInput.value;
+    const userFilterEl = document.getElementById('filter-user');
+    const selectedUser = userFilterEl ? userFilterEl.value : 'all';
 
     currentFilteredJobs = allJobs.filter(job => {
         if (selectedBrandFilter !== 'all') {
@@ -228,6 +358,9 @@ function filterJobs() {
             if (selectedTypeFilter === 'ma' && !currentJobType.includes('ma') && !currentJobType.includes('maintenance')) return false;
             if (selectedTypeFilter === 'install' && !currentJobType.includes('install')) return false;
         }
+
+        // Admin user filter
+        if (selectedUser !== 'all' && String(job.user_id) !== String(selectedUser)) return false;
 
         const matchesQuery = 
             (job.shop_brand && job.shop_brand.toLowerCase().includes(query)) ||
@@ -332,6 +465,7 @@ jobForm.addEventListener('submit', async (e) => {
     formData.append('job_type', jobTypeInput.value);
     formData.append('repair_detail', jobTypeInput.value === 'Repair' ? repairDetailInput.value : '');
     formData.append('image_path', imagePathInput.value || '');
+    if (currentUser) formData.append('user_id', currentUser.id);
 
     if (jobImageInput.files.length > 0) { formData.append('image', jobImageInput.files[0]); }
 
