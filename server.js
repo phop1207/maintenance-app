@@ -212,36 +212,6 @@ function makeGreetingAndShopFlex(displayName) {
         }
     };
 }
-    return {
-        type: 'flex',
-        altText: 'ยินดีต้อนรับ กรุณาพิมพ์ "เริ่มต้น" เพื่อเริ่มใช้งาน',
-        contents: {
-            type: 'bubble',
-            header: {
-                type: 'box', layout: 'vertical',
-                backgroundColor: '#2f3542',
-                paddingAll: '14px',
-                contents: [
-                    { type: 'text', text: '🏪 ยินดีต้อนรับ', weight: 'bold', size: 'lg', color: '#ffffff', align: 'center' }
-                ]
-            },
-            body: {
-                type: 'box', layout: 'vertical', spacing: 'md', paddingAll: '14px',
-                contents: [
-                    {
-                        type: 'box', layout: 'vertical', alignItems: 'center',
-                        contents: [
-                            { type: 'text', text: '👋', size: 'xl', align: 'center' },
-                            { type: 'text', text: 'กรุณาพิมพ์คำว่า', size: 'sm', color: '#888888', align: 'center', margin: 'md' },
-                            { type: 'text', text: '"เริ่มต้น"', size: 'lg', weight: 'bold', color: '#27ae60', align: 'center', margin: 'xs' },
-                            { type: 'text', text: 'เพื่อเริ่มบันทึกงาน', size: 'sm', color: '#888888', align: 'center', margin: 'xs' }
-                        ]
-                    }
-                ]
-            }
-        }
-    };
-}
 
 /** Flex: ปุ่มเลือกร้านสำหรับเริ่มงานครั้งต่อไป */
 function makeShopSelectorFlex() {
@@ -544,7 +514,7 @@ function makeAlertFlex(type, message) {
             type: 'bubble',
             body: {
                 type: 'box', layout: 'horizontal', spacing: 'md', alignItems: 'center',
-                backgroundColor: '#e53935',
+                backgroundColor: s.color,
                 paddingAll: '12px',
                 cornerRadius: '8px',
                 contents: [
@@ -1306,5 +1276,25 @@ async function saveJobToDatabase(currentState, userId, replyToken) {
         ]});
     }
 }
+
+// ─────────────────────────────────────────────
+// Health Check Route
+// ─────────────────────────────────────────────
+app.get('/health', (req, res) => res.status(200).send('OK'));
+
+// ─────────────────────────────────────────────
+// Keep-Alive: ป้องกัน Render Free Tier หลับ
+// ping ตัวเองทุก 10 นาที
+// ─────────────────────────────────────────────
+const SELF_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+
+setInterval(async () => {
+    try {
+        const res = await fetch(`${SELF_URL}/health`);
+        console.log(`[Keep-Alive] ping → ${res.status} (${new Date().toISOString()})`);
+    } catch (err) {
+        console.error('[Keep-Alive] ping failed:', err.message);
+    }
+}, 10 * 60 * 1000); // ทุก 10 นาที
 
 app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
