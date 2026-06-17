@@ -280,17 +280,61 @@ function updateDashboardStats(jobs) {
     }
 }
 
-function renderTable(jobs) {
-    jobTableBody.innerHTML = '';
-    document.getElementById('filtered-count').innerText = jobs.length;
+function groupJobsBySession(jobs) {
+    // รวม jobs ที่มีข้อมูลเหมือนกัน (date+time+shop+branch+job_type+repair_detail+user_id)
+    // ไว้ใน row เดียว แสดงรูปทุกใบในช่องเดียวกัน
+    const groups = [];
+    const keyMap = {};
 
     jobs.forEach(job => {
-        let imageHtml = '<span style="color:#94a3b8; font-style:italic; font-size:0.85rem;">ไม่มีรูปภาพ</span>';
-        if (job.image_path) {
-            const imgUrl = resolveImageUrl(job.image_path);
-            imageHtml = `<div class="img-container">
-                            <img src="${imgUrl}" alt="ใบงาน" class="img-thumb" style="cursor: pointer;" onclick="openLightbox('${imgUrl}', '${capitalizeText(job.shop_name)} - ${capitalizeText(job.branch_name)}')" title="คลิกส่องใบงาน">
-                         </div>`;
+        const key = [
+            job.date, job.time,
+            (job.shop_brand || '').toLowerCase(),
+            (job.shop_name || '').toLowerCase(),
+            (job.branch_code || '').toLowerCase(),
+            (job.branch_name || '').toLowerCase(),
+            (job.job_type || '').toLowerCase(),
+            (job.repair_detail || '').toLowerCase(),
+            job.user_id || ''
+        ].join('|');
+
+        if (keyMap[key] !== undefined) {
+            // เพิ่มรูปและ id เข้า group เดิม
+            groups[keyMap[key]].images.push(job.image_path);
+            groups[keyMap[key]].ids.push(job.id);
+        } else {
+            keyMap[key] = groups.length;
+            groups.push({ ...job, images: [job.image_path], ids: [job.id] });
+        }
+    });
+
+    return groups;
+}
+
+function renderTable(jobs) {
+    jobTableBody.innerHTML = '';
+
+    const grouped = groupJobsBySession(jobs);
+    document.getElementById('filtered-count').innerText = grouped.length;
+
+    grouped.forEach(job => {
+        // สร้าง HTML รูปหลายรูป
+        const validImages = job.images.filter(p => p);
+        let imageHtml;
+        if (validImages.length === 0) {
+            imageHtml = '<span style="color:#94a3b8; font-style:italic; font-size:0.85rem;">ไม่มีรูปภาพ</span>';
+        } else {
+            imageHtml = `<div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">`;
+            validImages.forEach((imgPath, idx) => {
+                const imgUrl = resolveImageUrl(imgPath);
+                imageHtml += `<div class="img-container" style="position:relative;">
+                    <img src="${imgUrl}" alt="ใบงาน ${idx+1}" class="img-thumb" style="cursor:pointer;"
+                        onclick="openLightbox('${imgUrl}', '${capitalizeText(job.shop_name)} - ${capitalizeText(job.branch_name)} (ใบที่ ${idx+1})')"
+                        title="ใบงานที่ ${idx+1} — คลิกขยาย">
+                    ${validImages.length > 1 ? `<span style="position:absolute;bottom:2px;right:4px;background:rgba(0,0,0,0.55);color:#fff;font-size:0.65rem;border-radius:4px;padding:1px 4px;">${idx+1}/${validImages.length}</span>` : ''}
+                </div>`;
+            });
+            imageHtml += `</div>`;
         }
 
         const brandFormatted = capitalizeText(job.shop_brand);
@@ -300,7 +344,6 @@ function renderTable(jobs) {
         else if (brandFormatted === 'Lucky') brandClass = 'badge-lucky';
         else if (brandFormatted === 'Bbq') brandClass = 'badge-bbq';
 
-        // แสดงผลประเภทงานคู่กับรายละเอียดเพิ่มเติม (ถ้ามี)
         let displayJobType = job.job_type;
         if (job.job_type === 'Repair' && job.repair_detail) {
             displayJobType = `Repair<br><small style="color: var(--danger-color); font-weight:500;">(${job.repair_detail})</small>`;
@@ -312,6 +355,13 @@ function renderTable(jobs) {
 
         const techName = job.users ? (job.users.display_name || job.users.username) : '-';
         const isAdmin = currentUser && currentUser.role === 'admin';
+
+        // ปุ่มจัดการ: แก้ไขและลบ id แรกเป็น primary, ถ้ามีหลาย id ให้ลบทุกใบพร้อมกัน
+        const primaryId = job.ids[0];
+        const deleteLabel = job.ids.length > 1 ? `ลบ (${job.ids.length} ใบ)` : 'ลบ';
+        const deleteHandler = job.ids.length > 1
+            ? `deleteJobGroup([${job.ids.join(',')}])`
+            : `deleteJob(${primaryId})`;
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -325,8 +375,8 @@ function renderTable(jobs) {
             <td>${imageHtml}</td>
             <td>
                 <div class="action-cell">
-                    <button class="btn btn-edit" onclick="editJob(${job.id})">แก้ไข</button>
-                    <button class="btn btn-delete" onclick="deleteJob(${job.id})">ลบ</button>
+                    <button class="btn btn-edit" onclick="editJob(${primaryId})">แก้ไข</button>
+                    <button class="btn btn-delete" onclick="${deleteHandler}">${deleteLabel}</button>
                 </div>
             </td>
         `;
@@ -408,18 +458,26 @@ window.exportToExcel = function() {
     if (!currentFilteredJobs || currentFilteredJobs.length === 0) { alert('❌ ไม่มีข้อมูลจะส่งออกครับ'); return; }
     
     try {
-        const dataForExcel = currentFilteredJobs.map((job, idx) => ({
-            'ลำดับ': idx + 1,
-            'วันที่เข้าทำงาน': job.date || '-',
-            'เวลา': job.time || '-',
-            'กลุ่มสถิติแบรนด์': capitalizeText(job.shop_brand),
-            'ชื่อร้านค้า': capitalizeText(job.shop_name) || '-',
-            'รหัสสาขา': job.branch_code ? job.branch_code.toUpperCase() : '-',
-            'ชื่อสาขา/สถานที่': capitalizeText(job.branch_name) || '-',
-            'ประเภทงานหลัก': job.job_type || '-',
-            'รายละเอียดความเสียหาย (กรณีงานซ่อม)': job.repair_detail || '-',
-            'ที่อยู่ไฟล์รูปภาพ': job.image_path ? (job.image_path.startsWith('http') ? job.image_path : window.location.origin + '/' + job.image_path) : 'ไม่มีรูปภาพ'
-        }));
+        const grouped = groupJobsBySession(currentFilteredJobs);
+        const dataForExcel = grouped.map((job, idx) => {
+            const imageUrls = job.images
+                .filter(p => p)
+                .map(p => p.startsWith('http') ? p : window.location.origin + '/' + p)
+                .join(' | ');
+            return {
+                'ลำดับ': idx + 1,
+                'วันที่เข้าทำงาน': job.date || '-',
+                'เวลา': job.time || '-',
+                'กลุ่มสถิติแบรนด์': capitalizeText(job.shop_brand),
+                'ชื่อร้านค้า': capitalizeText(job.shop_name) || '-',
+                'รหัสสาขา': job.branch_code ? job.branch_code.toUpperCase() : '-',
+                'ชื่อสาขา/สถานที่': capitalizeText(job.branch_name) || '-',
+                'ประเภทงานหลัก': job.job_type || '-',
+                'รายละเอียดความเสียหาย (กรณีงานซ่อม)': job.repair_detail || '-',
+                'จำนวนรูปใบงาน': job.images.filter(p => p).length,
+                'ที่อยู่ไฟล์รูปภาพ': imageUrls || 'ไม่มีรูปภาพ'
+            };
+        });
 
         const worksheet = XLSX.utils.json_to_sheet(dataForExcel);
         const workbook = XLSX.utils.book_new();
@@ -496,6 +554,13 @@ window.deleteJob = async function(id) {
     if (confirm('คุณแน่ใจหรือไม่ที่จะลบรายการนี้?')) {
         const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
         if (response.ok) fetchJobs();
+    }
+};
+
+window.deleteJobGroup = async function(ids) {
+    if (confirm(`คุณแน่ใจหรือไม่ที่จะลบงานนี้ทั้งหมด ${ids.length} ใบ?`)) {
+        await Promise.all(ids.map(id => fetch(`${API_URL}/${id}`, { method: 'DELETE' })));
+        fetchJobs();
     }
 };
 
