@@ -497,6 +497,45 @@ function makeJobSummaryText(date, time, shop_brand, shop_name, branch_code, bran
     return { type: 'text', text: text };
 }
 
+
+/** Flex: ถามว่าต้องการอัพโหลดรูปเพิ่มหรือไม่ */
+function makeAskMoreImageFlex(count) {
+    return {
+        type: 'flex',
+        altText: `อัพโหลดรูปที่ ${count} สำเร็จ! ต้องการอัพโหลดเพิ่มไหมครับ?`,
+        contents: {
+            type: 'bubble',
+            header: {
+                type: 'box', layout: 'vertical',
+                backgroundColor: '#27ae60', paddingAll: '14px',
+                contents: [
+                    { type: 'text', text: `✅ อัพโหลดรูปที่ ${count} สำเร็จ!`, weight: 'bold', size: 'md', color: '#ffffff', align: 'center' }
+                ]
+            },
+            body: {
+                type: 'box', layout: 'vertical', spacing: 'md', paddingAll: '14px',
+                contents: [
+                    { type: 'text', text: 'ต้องการแนบรูปใบงานเพิ่มเติมไหมครับ?', size: 'sm', color: '#555555', align: 'center', wrap: true },
+                    { type: 'text', text: `(อัพโหลดไปแล้ว ${count} รูป)`, size: 'xs', color: '#aaaaaa', align: 'center', margin: 'xs' }
+                ]
+            },
+            footer: {
+                type: 'box', layout: 'horizontal', spacing: 'md', paddingAll: '12px',
+                contents: [
+                    {
+                        type: 'button', flex: 1, style: 'primary', color: '#3498db',
+                        action: { type: 'message', label: '📷 อัพโหลดเพิ่ม', text: 'อัพโหลดเพิ่ม' }
+                    },
+                    {
+                        type: 'button', flex: 1, style: 'primary', color: '#27ae60',
+                        action: { type: 'message', label: '✅ เสร็จสิ้น', text: 'เสร็จสิ้น' }
+                    }
+                ]
+            }
+        }
+    };
+}
+
 /** Flex: แจ้งเตือนทั่วไป (พื้นหลังสีแดง ข้อความสีขาว) */
 function makeAlertFlex(type, message) {
     const styles = {
@@ -960,7 +999,7 @@ app.post('/webhook', async (req, res) => {
         // ── รับรูปภาพ ──────────────────────────────────
         if (event.type === 'message' && event.message.type === 'image') {
             const currentState = userStates[userId];
-            if (currentState && currentState.step === 'AWAITING_IMAGE') {
+            if (currentState && (currentState.step === 'AWAITING_IMAGE' || currentState.step === 'AWAITING_MORE_IMAGE')) {
                 const messageId = event.message.id;
                 const fileName = `job_${currentState.jobId}_${Date.now()}.jpg`;
 
@@ -1014,26 +1053,52 @@ app.post('/webhook', async (req, res) => {
 
                     const relativePath = publicUrl;
                     const jobIdToSend = currentState.jobId;
-                    console.log(`[IMAGE] updating job id=${jobIdToSend} with image_path=${relativePath}`);
 
-                    // ใช้ Supabase แทน (.select() เพื่อให้รู้ว่ามีแถวถูกอัปเดตจริงหรือไม่)
-            const { data: updatedRows, error } = await supabase
-                .from('jobs')
-                .update({ image_path: relativePath })
-                .eq('id', currentState.jobId)
-                .select();
-
-            console.log('[IMAGE] supabase update result:', JSON.stringify({ updatedRows, error }));
-
-            delete userStates[userId];
-            if (error) {
-                await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('error', 'บันทึกรูปไม่สำเร็จ: ' + error.message)] });
-            } else if (!updatedRows || updatedRows.length === 0) {
-                console.error(`[IMAGE] WARNING: 0 rows updated for job id=${jobIdToSend}. Possible RLS policy block or wrong id.`);
-                await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('error', `บันทึกรูปไม่สำเร็จ: ไม่พบงาน id=${jobIdToSend} ใน database (อาจถูก RLS บล็อก)`)] });
-            } else {
-                await sendJobSummaryAfterImage(userId, event.replyToken, currentState.jobId);
-            }
+                    if (currentState.step === 'AWAITING_IMAGE') {
+                        // รูปแรก → อัปเดต job เดิม
+                        console.log(`[IMAGE] updating job id=${jobIdToSend} with image_path=${relativePath}`);
+                        const { data: updatedRows, error } = await supabase
+                            .from('jobs')
+                            .update({ image_path: relativePath })
+                            .eq('id', currentState.jobId)
+                            .select();
+                        console.log('[IMAGE] supabase update result:', JSON.stringify({ updatedRows, error }));
+                        if (error) {
+                            delete userStates[userId];
+                            await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('error', 'บันทึกรูปไม่สำเร็จ: ' + error.message)] });
+                        } else if (!updatedRows || updatedRows.length === 0) {
+                            delete userStates[userId];
+                            console.error(`[IMAGE] WARNING: 0 rows updated for job id=${jobIdToSend}.`);
+                            await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('error', `บันทึกรูปไม่สำเร็จ: ไม่พบงาน id=${jobIdToSend} ใน database (อาจถูก RLS บล็อก)`)] });
+                        } else {
+                            currentState.imageCount = 1;
+                            currentState.step = 'AWAITING_MORE_IMAGE';
+                            await client.replyMessage({ replyToken: event.replyToken, messages: [makeAskMoreImageFlex(1)] });
+                        }
+                    } else {
+                        // รูปที่ 2+ → สร้าง job ใหม่ copy ข้อมูลจาก job เดิม พร้อมรูปใหม่
+                        const { data: origJob } = await supabase.from('jobs').select('*').eq('id', currentState.jobId).single();
+                        if (!origJob) {
+                            delete userStates[userId];
+                            await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('error', 'ไม่พบข้อมูลงานต้นฉบับ')] });
+                        } else {
+                            const { error: insertErr } = await supabase.from('jobs').insert([{
+                                date: origJob.date, time: origJob.time,
+                                shop_brand: origJob.shop_brand, shop_name: origJob.shop_name,
+                                branch_code: origJob.branch_code, branch_name: origJob.branch_name,
+                                job_type: origJob.job_type, repair_detail: origJob.repair_detail,
+                                image_path: relativePath, user_id: origJob.user_id
+                            }]);
+                            if (insertErr) {
+                                delete userStates[userId];
+                                await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('error', 'บันทึกใบงานเพิ่มไม่สำเร็จ: ' + insertErr.message)] });
+                            } else {
+                                currentState.imageCount = (currentState.imageCount || 1) + 1;
+                                currentState.step = 'AWAITING_MORE_IMAGE';
+                                await client.replyMessage({ replyToken: event.replyToken, messages: [makeAskMoreImageFlex(currentState.imageCount)] });
+                            }
+                        }
+                    }
                 } catch (error) {
                     delete userStates[userId];
                     await client.replyMessage({ replyToken: event.replyToken, messages: [
@@ -1132,6 +1197,27 @@ app.post('/webhook', async (req, res) => {
                     await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('error', 'เปลี่ยน PIN ไม่สำเร็จ: ' + updateErr.message)]});
                 } else {
                     await client.replyMessage({ replyToken: event.replyToken, messages: [makeAlertFlex('success', `เปลี่ยน PIN สำเร็จแล้วครับ! PIN ใหม่ของคุณคือ: ${text}`)]});
+                }
+                continue;
+            }
+
+            // รอรูปเพิ่มเติม — ผู้ใช้ตอบปุ่ม
+            if (userStates[userId] && userStates[userId].step === 'AWAITING_MORE_IMAGE') {
+                if (text === 'อัพโหลดเพิ่ม') {
+                    // ให้ step กลับไปรอรูป
+                    userStates[userId].step = 'AWAITING_IMAGE';
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [
+                        makeAlertFlex('info', 'กรุณาส่งรูปภาพใบงานถัดไปเข้าแชทได้เลยครับ')
+                    ]});
+                } else if (text === 'เสร็จสิ้น') {
+                    const jobId = userStates[userId].jobId;
+                    delete userStates[userId];
+                    await sendJobSummaryAfterImage(userId, event.replyToken, jobId);
+                } else {
+                    // ข้อความอื่น → แจ้งเตือน
+                    const jobId = userStates[userId].jobId;
+                    delete userStates[userId];
+                    await sendJobSummaryAfterImage(userId, event.replyToken, jobId);
                 }
                 continue;
             }

@@ -6,17 +6,23 @@ let currentUser = null; // { id, username, display_name, role }
 function getSession() {
     try {
         const s = sessionStorage.getItem('joblogger_user');
-        return s ? JSON.parse(s) : null;
+        if (s) return JSON.parse(s);
+        const l = localStorage.getItem('joblogger_remember');
+        return l ? JSON.parse(l) : null;
     } catch { return null; }
 }
 
-function setSession(user) {
+function setSession(user, remember = false) {
     sessionStorage.setItem('joblogger_user', JSON.stringify(user));
+    if (remember) {
+        localStorage.setItem('joblogger_remember', JSON.stringify(user));
+    }
     currentUser = user;
 }
 
 function clearSession() {
     sessionStorage.removeItem('joblogger_user');
+    localStorage.removeItem('joblogger_remember');
     currentUser = null;
 }
 
@@ -51,7 +57,8 @@ document.getElementById('btn-login').addEventListener('click', async () => {
             errorEl.style.display = 'block';
             return;
         }
-        setSession(data);
+        const remember = document.getElementById('login-remember').checked;
+        setSession(data, remember);
         initAfterLogin();
     } catch (e) {
         errorEl.textContent = '❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';

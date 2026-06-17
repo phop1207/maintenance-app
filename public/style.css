@@ -115,7 +115,7 @@ body {
 .form-group { margin-bottom: 15px; }
 .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--primary-color); }
 
-input[type="text"], input[type="date"], input[type="time"] {
+input[type="text"], input[type="date"], input[type="time"], input[type="password"] {
     width: 100%; padding: 12px 14px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.95rem; color: var(--text-main); background-color: var(--card-bg); transition: border-color 0.15s, box-shadow 0.15s;
 }
 input:focus { outline: none; border-color: var(--line-green); box-shadow: 0 0 0 3px rgba(6, 199, 85, 0.15); }
@@ -893,6 +893,45 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
     background: #2d1010; border-color: #7f1d1d; color: #f87171;
 }
 
+
+/* Remember Me Row */
+.remember-me-row {
+    margin: 14px 0 4px 0;
+}
+.remember-me-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    user-select: none;
+}
+.remember-me-label input[type="checkbox"] {
+    display: none;
+}
+.remember-checkmark {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--card-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+.remember-me-label input[type="checkbox"]:checked + .remember-checkmark {
+    background: var(--line-green);
+    border-color: var(--line-green);
+}
+.remember-me-label input[type="checkbox"]:checked + .remember-checkmark::after {
+    content: "✓";
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
 /* ═══════════════════════════════════════
    User Badge & Logout
 ═══════════════════════════════════════ */
