@@ -220,8 +220,9 @@ async function fetchJobs() {
         const response = await fetch(`${API_URL}?${params}`);
         allJobs = await response.json();
         currentFilteredJobs = [...allJobs];
-        filterJobs(); 
-        updateDashboardStats(allJobs); 
+        filterJobs();
+        // ใช้ grouped jobs เพื่อนับสถิติ dashboard ให้ตรงกับจำนวนงานจริง (ไม่นับตามจำนวนใบงาน/รูป)
+        updateDashboardStats(groupJobsBySession(allJobs));
     } catch (error) {
         console.error('Error fetching jobs:', error);
     }
@@ -433,6 +434,8 @@ function filterJobs() {
 
         return true;
     });
+    // อัปเดต dashboard stats โดยนับจาก grouped (1 งาน = 1 นับ ไม่ว่าจะมีกี่ใบงาน)
+    updateDashboardStats(groupJobsBySession(currentFilteredJobs));
     renderTable(currentFilteredJobs);
 }
 
@@ -450,6 +453,7 @@ btnClearFilter.addEventListener('click', () => {
     document.getElementById('tag-type-all').classList.add('active');
     
     currentFilteredJobs = [...allJobs];
+    updateDashboardStats(groupJobsBySession(allJobs));
     renderTable(allJobs);
 });
 
