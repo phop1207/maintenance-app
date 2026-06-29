@@ -145,6 +145,7 @@ input[type="file"] {
 .shop-mk { border-left: 5px solid #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.03); }
 .shop-fuji { border-left: 5px solid #3b82f6; color: #3b82f6; background: rgba(59, 130, 246, 0.03); }
 .shop-lucky { border-left: 5px solid #10b981; color: #10b981; background: rgba(16, 185, 129, 0.03); }
+.shop-bonus { border-left: 5px solid #8e44ad; color: #8e44ad; background: rgba(142, 68, 173, 0.03); } /* สีม่วง Bonus Suki */
 .type-repair { border-left: 5px solid #dc2626; color: #dc2626; background: rgba(220, 38, 38, 0.03); }
 .type-ma { border-left: 5px solid #d97706; color: #d97706; background: rgba(217, 119, 6, 0.03); }
 .type-install { border-left: 5px solid #2563eb; color: #2563eb; background: rgba(37, 99, 235, 0.03); }
@@ -298,6 +299,7 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 .badge-mk { background-color: #ffebe6; color: #de350b; }
 .badge-fuji { background-color: #deebff; color: #0747a6; }
 .badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bonus { background-color: #f3e8ff; color: #6b21a8; }
 .badge-bbq { background-color: #e3fcef; color: #006644; }
 .badge-sme { background-color: #fff0b3; color: #172b4d; }
 
@@ -400,6 +402,7 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 .badge-mk { background-color: #ffebe6; color: #de350b; }
 .badge-fuji { background-color: #deebff; color: #0747a6; }
 .badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bonus { background-color: #f3e8ff; color: #6b21a8; }
 .badge-bbq { background-color: #e3fcef; color: #006644; }
 .badge-sme { background-color: #fff0b3; color: #172b4d; }
 
@@ -497,6 +500,7 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 .badge-mk { background-color: #ffebe6; color: #de350b; }
 .badge-fuji { background-color: #deebff; color: #0747a6; }
 .badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bonus { background-color: #f3e8ff; color: #6b21a8; }
 .badge-bbq { background-color: #e3fcef; color: #006644; }
 .badge-sme { background-color: #fff0b3; color: #172b4d; }
 
@@ -593,6 +597,7 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 .badge-mk { background-color: #ffebe6; color: #de350b; }
 .badge-fuji { background-color: #deebff; color: #0747a6; }
 .badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bonus { background-color: #f3e8ff; color: #6b21a8; }
 .badge-bbq { background-color: #e3fcef; color: #006644; }
 .badge-sme { background-color: #fff0b3; color: #172b4d; }
 
@@ -689,6 +694,7 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 .badge-mk { background-color: #ffebe6; color: #de350b; }
 .badge-fuji { background-color: #deebff; color: #0747a6; }
 .badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bonus { background-color: #f3e8ff; color: #6b21a8; }
 .badge-bbq { background-color: #e3fcef; color: #006644; }
 .badge-sme { background-color: #fff0b3; color: #172b4d; }
 
@@ -736,6 +742,7 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 .tag-btn.tag-mk.active { background-color: #de350b !important; border-color: #de350b !important; }
 .tag-btn.tag-fuji.active { background-color: #0747a6 !important; border-color: #0747a6 !important; }
 .tag-btn.tag-lucky.active { background-color: #403294 !important; border-color: #403294 !important; }
+.tag-btn.tag-bonus.active { background-color: #8e44ad !important; border-color: #8e44ad !important; }
 .tag-btn.tag-bbq.active { background-color: #006644 !important; border-color: #006644 !important; }
 .tag-btn.tag-sme.active { background-color: #e5a900 !important; border-color: #e5a900 !important; }
 
@@ -824,6 +831,7 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 .badge-mk { background-color: #ffebe6; color: #de350b; }
 .badge-fuji { background-color: #deebff; color: #0747a6; }
 .badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bonus { background-color: #f3e8ff; color: #6b21a8; }
 .badge-bbq { background-color: #e3fcef; color: #006644; }
 .badge-sme { background-color: #fff0b3; color: #172b4d; }
 
@@ -842,6 +850,7 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 .tag-btn.tag-mk.active { background-color: #de350b !important; border-color: #de350b !important; }
 .tag-btn.tag-fuji.active { background-color: #0747a6 !important; border-color: #0747a6 !important; }
 .tag-btn.tag-lucky.active { background-color: #403294 !important; border-color: #403294 !important; }
+.tag-btn.tag-bonus.active { background-color: #8e44ad !important; border-color: #8e44ad !important; }
 .tag-btn.tag-bbq.active { background-color: #006644 !important; border-color: #006644 !important; }
 .tag-btn.tag-sme.active { background-color: #e5a900 !important; border-color: #e5a900 !important; }
 

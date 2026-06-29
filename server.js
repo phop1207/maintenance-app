@@ -202,6 +202,12 @@ function makeGreetingAndShopFlex(displayName) {
                             { type: 'button', flex: 1, style: 'primary', color: '#e67e22', action: { type: 'message', label: '🍱 Fuji', text: 'Fuji' } },
                             { type: 'button', flex: 1, style: 'primary', color: '#f1c40f', action: { type: 'message', label: '🍜 Lucky Suki', text: 'Lucky Suki' } }
                         ]
+                    },
+                    {
+                        type: 'box', layout: 'horizontal', spacing: 'md', margin: 'sm',
+                        contents: [
+                            { type: 'button', flex: 1, style: 'primary', color: '#8e44ad', action: { type: 'message', label: '🍢 Bonus Suki', text: 'Bonus Suki' } }
+                        ]
                     }
                 ]
             },
@@ -225,32 +231,32 @@ function makeShopSelectorFlex() {
                 backgroundColor: '#2f3542',
                 paddingAll: '14px',
                 contents: [
-                    { type: 'text', text: '🏪 เริ่มบันทึกงาน', weight: 'bold', size: 'lg', color: '#ffffff', align: 'center' },
+                    { type: 'text', text: '🏪 เริ่มบันทึกงานถัดไป', weight: 'bold', size: 'lg', color: '#ffffff', align: 'center' },
                     { type: 'text', text: 'เลือกร้านค้าด้านล่าง', size: 'xs', color: '#aaaaaa', align: 'center', margin: 'xs' }
                 ]
             },
             body: {
-                type: 'box', layout: 'vertical', spacing: 'md', paddingAll: '14px',
+                type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '14px',
                 contents: [
                     {
-                        type: 'box', layout: 'horizontal', spacing: 'md',
+                        type: 'box', layout: 'horizontal', spacing: 'md', margin: 'sm',
                         contents: [
-                            {
-                                type: 'button', flex: 1,
-                                style: 'primary', color: '#e74c3c',
-                                action: { type: 'message', label: '🍲 MK', text: 'mk' }
-                            },
-                            {
-                                type: 'button', flex: 1,
-                                style: 'primary', color: '#2ecc71',
-                                action: { type: 'message', label: '🍖 BBQ', text: 'bbq' }
-                            }
+                            { type: 'button', flex: 1, style: 'primary', color: '#e74c3c', action: { type: 'message', label: '🍲 MK', text: 'mk' } },
+                            { type: 'button', flex: 1, style: 'primary', color: '#2ecc71', action: { type: 'message', label: '🍖 BBQ', text: 'bbq' } }
                         ]
                     },
                     {
-                        type: 'button',
-                        style: 'primary', color: '#f1c40f',
-                        action: { type: 'message', label: '🍜 Lucky Suki', text: 'Lucky Suki' }
+                        type: 'box', layout: 'horizontal', spacing: 'md', margin: 'sm',
+                        contents: [
+                            { type: 'button', flex: 1, style: 'primary', color: '#e67e22', action: { type: 'message', label: '🍱 Fuji', text: 'Fuji' } },
+                            { type: 'button', flex: 1, style: 'primary', color: '#f1c40f', action: { type: 'message', label: '🍜 Lucky Suki', text: 'Lucky Suki' } }
+                        ]
+                    },
+                    {
+                        type: 'box', layout: 'horizontal', spacing: 'md', margin: 'sm',
+                        contents: [
+                            { type: 'button', flex: 1, style: 'primary', color: '#8e44ad', action: { type: 'message', label: '🍢 Bonus Suki', text: 'Bonus Suki' } }
+                        ]
                     }
                 ]
             },
@@ -623,6 +629,7 @@ function getBrandCategory(shopName) {
     if (b.includes('mk')) return 'Mk';
     if (b.includes('fuji') || b.includes('ฟูจิ')) return 'Fuji';
     if (b.includes('lucky') || b.includes('ลัคกี้')) return 'Lucky';
+    if (b.includes('bonus') || b.includes('โบนัส')) return 'Bonus';
     if (b.includes('bbq') || b.includes('บาร์บีคิว') || b.includes('plaza')) return 'Bbq';
     if (b.includes('seo')) return 'SEO';
     return 'Sme';

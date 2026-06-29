@@ -229,7 +229,7 @@ async function fetchJobs() {
 }
 
 function updateDashboardStats(jobs) {
-    let mkCount = 0; let fujiCount = 0; let luckyCount = 0; let smeCount = 0; let bbqCount = 0;          
+    let mkCount = 0; let fujiCount = 0; let luckyCount = 0; let smeCount = 0; let bbqCount = 0; let bonusCount = 0;
     let repairCount = 0; let maCount = 0; let installCount = 0;
     let latestJob = null;
 
@@ -240,7 +240,8 @@ function updateDashboardStats(jobs) {
         if (brand === 'Mk') mkCount++;
         else if (brand === 'Fuji') fujiCount++;
         else if (brand === 'Lucky') luckyCount++;
-        else if (brand === 'Bbq') bbqCount++; 
+        else if (brand === 'Bonus') bonusCount++;
+        else if (brand === 'Bbq') bbqCount++;
         else smeCount++;
 
         if (type.includes('repair') || type.includes('ซ่อม')) repairCount++;
@@ -258,6 +259,7 @@ function updateDashboardStats(jobs) {
     document.getElementById('stat-shop-mk').innerText = mkCount;
     document.getElementById('stat-shop-fuji').innerText = fujiCount;
     document.getElementById('stat-shop-lucky').innerText = luckyCount;
+    if (document.getElementById('stat-shop-bonus')) document.getElementById('stat-shop-bonus').innerText = bonusCount;
     if (document.getElementById('stat-shop-sme')) document.getElementById('stat-shop-sme').innerText = smeCount;
     if (document.getElementById('stat-shop-bbq')) document.getElementById('stat-shop-bbq').innerText = bbqCount;
 
@@ -343,6 +345,7 @@ function renderTable(jobs) {
         if (brandFormatted === 'Mk') brandClass = 'badge-mk';
         else if (brandFormatted === 'Fuji') brandClass = 'badge-fuji';
         else if (brandFormatted === 'Lucky') brandClass = 'badge-lucky';
+        else if (brandFormatted === 'Bonus') brandClass = 'badge-bonus';
         else if (brandFormatted === 'Bbq') brandClass = 'badge-bbq';
 
         let displayJobType = job.job_type;

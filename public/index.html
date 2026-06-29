@@ -95,6 +95,10 @@
                         <h3>Lucky Suki</h3>
                         <p><span id="stat-shop-lucky">0</span></p>
                     </div>
+                    <div class="stat-box shop-bonus" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('brand', 'Bonus');">
+                        <h3>Bonus Suki</h3>
+                        <p><span id="stat-shop-bonus">0</span></p>
+                    </div>
                     <div class="stat-box shop-bbq" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('brand', 'Bbq');">
                         <h3>Bbq</h3>
                         <p><span id="stat-shop-bbq">0</span></p>
@@ -171,6 +175,7 @@
                                     <option value="Mk">Mk</option>
                                     <option value="Fuji">Fuji</option>
                                     <option value="Lucky">Lucky Suki</option>
+                                    <option value="Bonus">Bonus Suki</option>
                                     <option value="Bbq">Bbq</option>
                                     <option value="Sme">ร้าน Sme (นอกเหนือลิสต์หลัก)</option>
                                 </select>
@@ -254,6 +259,7 @@
                             <button class="tag-btn tag-mk" id="tag-brand-mk" onclick="setQuickFilter('brand', 'Mk')">Mk</button>
                             <button class="tag-btn tag-fuji" id="tag-brand-fuji" onclick="setQuickFilter('brand', 'Fuji')">Fuji</button>
                             <button class="tag-btn tag-lucky" id="tag-brand-lucky" onclick="setQuickFilter('brand', 'Lucky')">Lucky</button>
+                            <button class="tag-btn tag-bonus" id="tag-brand-bonus" onclick="setQuickFilter('brand', 'Bonus')">Bonus</button>
                             <button class="tag-btn tag-bbq" id="tag-brand-bbq" onclick="setQuickFilter('brand', 'Bbq')">Bbq</button>
                             <button class="tag-btn tag-sme" id="tag-brand-sme" onclick="setQuickFilter('brand', 'Sme')">Sme</button>
                         </div>
