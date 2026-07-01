@@ -877,6 +877,7 @@ function getBrandCategory(shopName) {
     if (b.includes('mk')) return 'Mk';
     if (b.includes('fuji') || b.includes('ฟูจิ')) return 'Fuji';
     if (b.includes('lucky') || b.includes('ลัคกี้')) return 'Lucky';
+    if (b.includes('bonus') || b.includes('โบนัส')) return 'Bonus';
     if (b.includes('bbq') || b.includes('บาร์บีคิว') || b.includes('plaza')) return 'Bbq';
     if (b.includes('seo')) return 'SEO';
     return 'Sme';
@@ -1145,6 +1146,21 @@ app.get('/api/jobs', async (req, res) => {
 // Flex Helpers — ระบบบันทึกค่าตอบแทนเพิ่มเติม (คำสั่งลับ)
 // ─────────────────────────────────────────────
 
+/** แปลงข้อความวันที่แบบยืดหยุ่น: "วันนี้"/"today" หรือ YYYY-MM-DD (ห้ามเป็นอนาคต) */
+function parseFlexibleIncomeDate(text) {
+    const nowTH = new Date(Date.now() + 7 * 60 * 60 * 1000);
+    const todayStr = nowTH.toISOString().split('T')[0];
+    const t = (text || '').trim();
+    const tLower = t.toLowerCase();
+    if (t === 'วันนี้' || tLower === 'today') return { ok: true, date: todayStr };
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+        const parsed = new Date(t);
+        if (isNaN(parsed.getTime()) || t > todayStr) return { ok: false, todayStr };
+        return { ok: true, date: t };
+    }
+    return { ok: false, todayStr };
+}
+
 /** แถวสรุป 1 บรรทัดในเมนูหลัก (label, detail, amount) */
 function makeIncRow(label, detail, amount) {
     return {
@@ -1160,14 +1176,14 @@ function makeIncRow(label, detail, amount) {
 /** Flex: เมนูหลักของระบบบันทึกค่าตอบแทนเพิ่มเติม */
 function makeIncomeMenuFlex(state) {
     const otEntries = state.ot_entries || [];
-    const trips = state.trips || [];
+    const routes = state.routes || [];
     const tolls = state.tolls || [];
     const parkings = state.parkings || [];
 
     const otHours = otEntries.reduce((s, e) => s + e.hours, 0);
     const otAmount = otEntries.reduce((s, e) => s + e.amount, 0);
-    const travelKm = trips.reduce((s, t) => s + t.km_total, 0);
-    const travelAmount = trips.reduce((s, t) => s + t.amount, 0);
+    const travelKm = routes.reduce((s, r) => s + r.total_km, 0);
+    const travelAmount = routes.reduce((s, r) => s + r.amount, 0);
     const tollAmount = tolls.reduce((s, t) => s + t.amount, 0);
     const parkingAmount = parkings.reduce((s, t) => s + t.amount, 0);
     const grand = otAmount + travelAmount + tollAmount + parkingAmount;
@@ -1188,7 +1204,7 @@ function makeIncomeMenuFlex(state) {
                 type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '14px',
                 contents: [
                     makeIncRow('⏱ OT', `${otHours} ชม.`, otAmount),
-                    makeIncRow('🚗 เดินทาง', `${travelKm} กม.`, travelAmount),
+                    makeIncRow('🚗 เดินทาง', `${routes.length} เที่ยว / ${travelKm} กม.`, travelAmount),
                     makeIncRow('🛣 ทางด่วน', `${tolls.length} รายการ`, tollAmount),
                     makeIncRow('🅿️ ที่จอดรถ', `${parkings.length} รายการ`, parkingAmount),
                     { type: 'separator', margin: 'md' },
@@ -1242,30 +1258,40 @@ function makeIncomeAskFlex(title, promptText, hint) {
     };
 }
 
-/** Flex: บันทึกทริปเดินทางสำเร็จ + ปุ่มเพิ่มทริปอีก/กลับเมนู */
-function makeIncomeTripMoreFlex(trip) {
+/** Flex: บันทึกจุดเดินทางแล้ว + ปุ่มเพิ่มจุดต่อไป / บันทึก (จบเส้นทาง) */
+function makeIncomePointMoreFlex(route, point) {
+    const pointRows = route.points.map((p, i) => ({
+        type: 'text',
+        text: `${i + 1}. ${p.place} — ${p.purpose} (${p.km} กม.)`,
+        size: 'xs', color: '#555555', wrap: true, margin: i === 0 ? 'none' : 'xs'
+    }));
+
     return {
         type: 'flex',
-        altText: `บันทึกทริป ${trip.origin} → ${trip.destination} = ${trip.amount.toLocaleString()} บาท`,
+        altText: `บันทึกจุดที่ ${route.points.length}: ${point.place} แล้ว`,
         contents: {
             type: 'bubble',
             header: {
                 type: 'box', layout: 'vertical', backgroundColor: '#27ae60', paddingAll: '14px',
-                contents: [{ type: 'text', text: '✅ บันทึกทริปเดินทางแล้ว', weight: 'bold', size: 'md', color: '#ffffff', align: 'center' }]
+                contents: [
+                    { type: 'text', text: `✅ บันทึกจุดที่ ${route.points.length} แล้ว`, weight: 'bold', size: 'md', color: '#ffffff', align: 'center' },
+                    { type: 'text', text: `วันที่ ${route.date}`, size: 'xs', color: '#eafaf1', align: 'center', margin: 'xs' }
+                ]
             },
             body: {
-                type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '14px',
+                type: 'box', layout: 'vertical', spacing: 'xs', paddingAll: '14px',
                 contents: [
-                    { type: 'text', text: `${trip.origin} → ${trip.destination}`, size: 'sm', weight: 'bold', color: '#2c3e50', wrap: true },
-                    { type: 'text', text: `ขาไป ${trip.km_go} กม. + ขากลับ ${trip.km_back} กม. = ${trip.km_total} กม.`, size: 'xs', color: '#888888', margin: 'xs', wrap: true },
-                    { type: 'text', text: `= ${trip.amount.toLocaleString()} บาท (กม. ละ ${KM_RATE_PER_KM} บาท)`, size: 'sm', color: '#c0392b', weight: 'bold', margin: 'sm' }
+                    { type: 'text', text: '📍 เส้นทางที่บันทึกไว้:', size: 'xs', color: '#888888' },
+                    ...pointRows,
+                    { type: 'separator', margin: 'sm' },
+                    { type: 'text', text: `มีจุดต่อไปอีกไหมครับ?`, size: 'sm', weight: 'bold', color: '#2c3e50', margin: 'sm', wrap: true }
                 ]
             },
             footer: {
                 type: 'box', layout: 'horizontal', spacing: 'md', paddingAll: '12px',
                 contents: [
-                    { type: 'button', flex: 1, style: 'primary', color: '#3498db', action: { type: 'message', label: '➕ เพิ่มอีกทริป', text: '__inc_trip_more__' } },
-                    { type: 'button', flex: 1, style: 'primary', color: '#27ae60', action: { type: 'message', label: '✅ กลับเมนู', text: '__inc_trip_done__' } }
+                    { type: 'button', flex: 1, style: 'primary', color: '#3498db', action: { type: 'message', label: '➕ จุดต่อไป', text: '__inc_point_more__' } },
+                    { type: 'button', flex: 1, style: 'primary', color: '#27ae60', action: { type: 'message', label: '💾 บันทึก', text: '__inc_point_done__' } }
                 ]
             }
         }
@@ -1275,40 +1301,48 @@ function makeIncomeTripMoreFlex(trip) {
 /** Flex: สรุปรายการทั้งหมด + ปุ่มบันทึก/กลับเมนู */
 function makeIncomeSummaryFlex(state) {
     const otEntries = state.ot_entries || [];
-    const trips = state.trips || [];
+    const routes = state.routes || [];
     const tolls = state.tolls || [];
     const parkings = state.parkings || [];
 
     const otAmount = otEntries.reduce((s, e) => s + e.amount, 0);
-    const travelAmount = trips.reduce((s, t) => s + t.amount, 0);
+    const travelAmount = routes.reduce((s, r) => s + r.amount, 0);
     const tollAmount = tolls.reduce((s, t) => s + t.amount, 0);
     const parkingAmount = parkings.reduce((s, t) => s + t.amount, 0);
     const grand = otAmount + travelAmount + tollAmount + parkingAmount;
 
     const detailRows = [];
-    otEntries.forEach((e, i) => detailRows.push({
-        type: 'box', layout: 'horizontal', margin: 'xs',
-        contents: [
-            { type: 'text', text: `⏱ OT #${i + 1} (${e.hours} ชม.)`, size: 'xs', color: '#555555', flex: 6, wrap: true },
-            { type: 'text', text: `${e.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' }
-        ]
-    }));
-    trips.forEach((t, i) => detailRows.push({
-        type: 'box', layout: 'horizontal', margin: 'xs',
-        contents: [
-            { type: 'text', text: `🚗 ${t.origin}→${t.destination} (${t.km_total} กม.)`, size: 'xs', color: '#555555', flex: 6, wrap: true },
-            { type: 'text', text: `${t.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' }
-        ]
-    }));
+    otEntries.forEach((e, i) => {
+        detailRows.push({
+            type: 'box', layout: 'horizontal', margin: i === 0 ? 'none' : 'md',
+            contents: [
+                { type: 'text', text: `⏱ OT #${i + 1} — ${e.date} (${e.hours} ชม.)`, size: 'xs', weight: 'bold', color: '#2c3e50', flex: 6, wrap: true },
+                { type: 'text', text: `${e.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' }
+            ]
+        });
+        detailRows.push({ type: 'text', text: `เหตุผล: ${e.reason}`, size: 'xxs', color: '#888888', margin: 'xs', wrap: true });
+    });
+    routes.forEach((r, i) => {
+        detailRows.push({
+            type: 'box', layout: 'horizontal', margin: 'md',
+            contents: [
+                { type: 'text', text: `🚗 เดินทาง #${i + 1} — ${r.date} (${r.total_km} กม.)`, size: 'xs', weight: 'bold', color: '#2c3e50', flex: 6, wrap: true },
+                { type: 'text', text: `${r.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' }
+            ]
+        });
+        r.points.forEach((p, j) => {
+            detailRows.push({ type: 'text', text: `   ${j + 1}. ${p.place} — ${p.purpose} (${p.km} กม.)`, size: 'xxs', color: '#888888', margin: 'xs', wrap: true });
+        });
+    });
     tolls.forEach((t, i) => detailRows.push({
-        type: 'box', layout: 'horizontal', margin: 'xs',
+        type: 'box', layout: 'horizontal', margin: 'md',
         contents: [
             { type: 'text', text: `🛣 ค่าทางด่วน #${i + 1}`, size: 'xs', color: '#555555', flex: 6 },
             { type: 'text', text: `${t.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' }
         ]
     }));
     parkings.forEach((t, i) => detailRows.push({
-        type: 'box', layout: 'horizontal', margin: 'xs',
+        type: 'box', layout: 'horizontal', margin: 'md',
         contents: [
             { type: 'text', text: `🅿️ ค่าจอดรถ #${i + 1}`, size: 'xs', color: '#555555', flex: 6 },
             { type: 'text', text: `${t.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' }
@@ -1593,7 +1627,7 @@ app.post('/webhook', async (req, res) => {
 
             // ── ระบบบันทึกค่าตอบแทนเพิ่มเติมประจำเดือน (คำสั่งลับ) ──
             if (textLower === INCOME_SECRET_COMMAND) {
-                userStates[userId] = { step: 'INC_MENU', ot_entries: [], trips: [], tolls: [], parkings: [] };
+                userStates[userId] = { step: 'INC_MENU', ot_entries: [], routes: [], tolls: [], parkings: [] };
                 await client.replyMessage({ replyToken: event.replyToken, messages: [
                     makeIncomeMenuFlex(userStates[userId])
                 ]});
@@ -1607,14 +1641,15 @@ app.post('/webhook', async (req, res) => {
                 if (incState.step === 'INC_MENU') {
                     if (text === '__inc_ot__') {
                         incState.step = 'INC_OT_HOURS';
+                        incState.currentOt = {};
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
                             makeIncomeAskFlex('⏱ จด OT', 'กรุณาระบุจำนวนชั่วโมง OT', `เช่น 2 หรือ 1.5 (1 ชม. = ${OT_RATE_PER_HOUR} บาท)`)
                         ]});
                     } else if (text === '__inc_travel__') {
-                        incState.step = 'INC_TRIP_ORIGIN';
-                        incState.currentTrip = {};
+                        incState.step = 'INC_TRIP_DATE';
+                        incState.currentRoute = { points: [] };
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
-                            makeIncomeAskFlex('🚗 จดค่าเดินทาง', 'กรุณาระบุต้นทาง', null)
+                            makeIncomeAskFlex('🚗 จดค่าเดินทาง', 'กรุณาระบุวันที่เดินทาง', 'พิมพ์ "วันนี้" หรือรูปแบบ YYYY-MM-DD (รองรับบันทึกย้อนหลัง)')
                         ]});
                     } else if (text === '__inc_toll__') {
                         incState.step = 'INC_TOLL_AMOUNT';
@@ -1632,13 +1667,13 @@ app.post('/webhook', async (req, res) => {
                         ]});
                     } else if (text === '__inc_save__') {
                         const otEntries = incState.ot_entries || [];
-                        const trips = incState.trips || [];
+                        const routes = incState.routes || [];
                         const tolls = incState.tolls || [];
                         const parkings = incState.parkings || [];
                         const otHours = otEntries.reduce((s, e) => s + e.hours, 0);
                         const otAmount = otEntries.reduce((s, e) => s + e.amount, 0);
-                        const travelKm = trips.reduce((s, t) => s + t.km_total, 0);
-                        const travelAmount = trips.reduce((s, t) => s + t.amount, 0);
+                        const travelKm = routes.reduce((s, r) => s + r.total_km, 0);
+                        const travelAmount = routes.reduce((s, r) => s + r.amount, 0);
                         const tollAmount = tolls.reduce((s, t) => s + t.amount, 0);
                         const parkingAmount = parkings.reduce((s, t) => s + t.amount, 0);
                         const totalAmount = otAmount + travelAmount + tollAmount + parkingAmount;
@@ -1661,9 +1696,10 @@ app.post('/webhook', async (req, res) => {
                             date: dateStr,
                             ot_hours: otHours,
                             ot_amount: otAmount,
+                            ot_details: otEntries,
                             travel_km: travelKm,
                             travel_amount: travelAmount,
-                            travel_details: trips,
+                            travel_details: routes,
                             toll_amount: tollAmount,
                             parking_amount: parkingAmount,
                             total_amount: totalAmount
@@ -1702,86 +1738,124 @@ app.post('/webhook', async (req, res) => {
                         ]});
                         continue;
                     }
-                    const amount = Math.round(hours * OT_RATE_PER_HOUR * 100) / 100;
-                    incState.ot_entries.push({ hours, amount });
+                    incState.currentOt.hours = hours;
+                    incState.step = 'INC_OT_REASON';
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [
+                        makeIncomeAskFlex('⏱ จด OT', 'กรุณาระบุเหตุผลที่ทำ OT', 'เช่น เร่งงานติดตั้งให้ทันกำหนด')
+                    ]});
+                    continue;
+                }
+
+                // ── OT: รอเหตุผล ──
+                if (incState.step === 'INC_OT_REASON') {
+                    incState.currentOt.reason = text;
+                    incState.step = 'INC_OT_DATE';
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [
+                        makeIncomeAskFlex('⏱ จด OT', 'กรุณาระบุวันที่ทำ OT', 'พิมพ์ "วันนี้" หรือรูปแบบ YYYY-MM-DD (รองรับบันทึกย้อนหลัง)')
+                    ]});
+                    continue;
+                }
+
+                // ── OT: รอวันที่ → บันทึก ──
+                if (incState.step === 'INC_OT_DATE') {
+                    const parsed = parseFlexibleIncomeDate(text);
+                    if (!parsed.ok) {
+                        await client.replyMessage({ replyToken: event.replyToken, messages: [
+                            makeAlertFlex('warning', `รูปแบบวันที่ไม่ถูกต้องครับ พิมพ์ "วันนี้" หรือ YYYY-MM-DD เช่น ${parsed.todayStr}`)
+                        ]});
+                        continue;
+                    }
+                    const otEntry = incState.currentOt;
+                    otEntry.date = parsed.date;
+                    otEntry.amount = Math.round(otEntry.hours * OT_RATE_PER_HOUR * 100) / 100;
+                    incState.ot_entries.push(otEntry);
+                    incState.currentOt = null;
                     incState.step = 'INC_MENU';
                     await client.replyMessage({ replyToken: event.replyToken, messages: [
-                        makeAlertFlex('success', `บันทึก OT ${hours} ชม. = ${amount.toLocaleString()} บาท แล้วครับ`),
+                        makeAlertFlex('success', `บันทึก OT ${otEntry.date} — ${otEntry.hours} ชม. = ${otEntry.amount.toLocaleString()} บาท แล้วครับ`),
                         makeIncomeMenuFlex(incState)
                     ]});
                     continue;
                 }
 
-                // ── เดินทาง: ต้นทาง ──
-                if (incState.step === 'INC_TRIP_ORIGIN') {
-                    incState.currentTrip = { origin: text };
-                    incState.step = 'INC_TRIP_DEST';
-                    await client.replyMessage({ replyToken: event.replyToken, messages: [
-                        makeIncomeAskFlex('🚗 จดค่าเดินทาง', 'กรุณาระบุปลายทาง', null)
-                    ]});
-                    continue;
-                }
-
-                // ── เดินทาง: ปลายทาง ──
-                if (incState.step === 'INC_TRIP_DEST') {
-                    incState.currentTrip.destination = text;
-                    incState.step = 'INC_TRIP_KM_GO';
-                    await client.replyMessage({ replyToken: event.replyToken, messages: [
-                        makeIncomeAskFlex('🚗 จดค่าเดินทาง', 'กรุณาระบุระยะทาง "ขาไป" กี่กิโลเมตร', `1 กม. = ${KM_RATE_PER_KM} บาท`)
-                    ]});
-                    continue;
-                }
-
-                // ── เดินทาง: กม.ขาไป ──
-                if (incState.step === 'INC_TRIP_KM_GO') {
-                    const km = parseFloat(text.replace(',', '.'));
-                    if (isNaN(km) || km < 0) {
+                // ── เดินทาง: วันที่เดินทาง ──
+                if (incState.step === 'INC_TRIP_DATE') {
+                    const parsed = parseFlexibleIncomeDate(text);
+                    if (!parsed.ok) {
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
-                            makeAlertFlex('warning', 'กรุณาระบุระยะทางขาไปเป็นตัวเลข เช่น 12 หรือ 12.5')
+                            makeAlertFlex('warning', `รูปแบบวันที่ไม่ถูกต้องครับ พิมพ์ "วันนี้" หรือ YYYY-MM-DD เช่น ${parsed.todayStr}`)
                         ]});
                         continue;
                     }
-                    incState.currentTrip.km_go = km;
-                    incState.step = 'INC_TRIP_KM_BACK';
+                    incState.currentRoute.date = parsed.date;
+                    incState.currentPoint = {};
+                    incState.step = 'INC_POINT_PLACE';
                     await client.replyMessage({ replyToken: event.replyToken, messages: [
-                        makeIncomeAskFlex('🚗 จดค่าเดินทาง', 'กรุณาระบุระยะทาง "ขากลับ" กี่กิโลเมตร', `1 กม. = ${KM_RATE_PER_KM} บาท`)
+                        makeIncomeAskFlex('🚗 จดค่าเดินทาง', 'จุดที่ 1: กรุณาระบุสถานที่', null)
                     ]});
                     continue;
                 }
 
-                // ── เดินทาง: กม.ขากลับ → สรุปทริป ──
-                if (incState.step === 'INC_TRIP_KM_BACK') {
+                // ── เดินทาง: สถานที่ของจุดนี้ ──
+                if (incState.step === 'INC_POINT_PLACE') {
+                    incState.currentPoint.place = text;
+                    incState.step = 'INC_POINT_PURPOSE';
+                    const pointNo = incState.currentRoute.points.length + 1;
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [
+                        makeIncomeAskFlex('🚗 จดค่าเดินทาง', `จุดที่ ${pointNo}: ไปทำอะไร`, 'เช่น ไปติดตั้งเครื่อง / ไปซ่อมงาน')
+                    ]});
+                    continue;
+                }
+
+                // ── เดินทาง: จุดประสงค์ของจุดนี้ ──
+                if (incState.step === 'INC_POINT_PURPOSE') {
+                    incState.currentPoint.purpose = text;
+                    incState.step = 'INC_POINT_KM';
+                    const pointNo = incState.currentRoute.points.length + 1;
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [
+                        makeIncomeAskFlex('🚗 จดค่าเดินทาง', `จุดที่ ${pointNo}: ระยะทางกี่กิโลเมตร`, `นับจากจุดก่อนหน้ามาถึงจุดนี้ (1 กม. = ${KM_RATE_PER_KM} บาท)`)
+                    ]});
+                    continue;
+                }
+
+                // ── เดินทาง: ระยะทางของจุดนี้ → บันทึกจุด แล้วถามว่ามีจุดต่อไปไหม ──
+                if (incState.step === 'INC_POINT_KM') {
                     const km = parseFloat(text.replace(',', '.'));
                     if (isNaN(km) || km < 0) {
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
-                            makeAlertFlex('warning', 'กรุณาระบุระยะทางขากลับเป็นตัวเลข เช่น 12 หรือ 12.5')
+                            makeAlertFlex('warning', 'กรุณาระบุระยะทางเป็นตัวเลข เช่น 12 หรือ 12.5')
                         ]});
                         continue;
                     }
-                    const trip = incState.currentTrip;
-                    trip.km_back = km;
-                    trip.km_total = Math.round((trip.km_go + trip.km_back) * 100) / 100;
-                    trip.amount = Math.round(trip.km_total * KM_RATE_PER_KM * 100) / 100;
-                    incState.trips.push(trip);
-                    incState.currentTrip = null;
-                    incState.step = 'INC_TRIP_MORE';
+                    incState.currentPoint.km = km;
+                    incState.currentRoute.points.push(incState.currentPoint);
+                    const savedPoint = incState.currentPoint;
+                    incState.currentPoint = null;
+                    incState.step = 'INC_POINT_MORE';
                     await client.replyMessage({ replyToken: event.replyToken, messages: [
-                        makeIncomeTripMoreFlex(trip)
+                        makeIncomePointMoreFlex(incState.currentRoute, savedPoint)
                     ]});
                     continue;
                 }
 
-                // ── เดินทาง: เพิ่มทริปอีก หรือ กลับเมนู ──
-                if (incState.step === 'INC_TRIP_MORE') {
-                    if (text === '__inc_trip_more__') {
-                        incState.currentTrip = {};
-                        incState.step = 'INC_TRIP_ORIGIN';
+                // ── เดินทาง: เพิ่มจุดต่อไป หรือ บันทึกจบเส้นทาง ──
+                if (incState.step === 'INC_POINT_MORE') {
+                    if (text === '__inc_point_more__') {
+                        incState.currentPoint = {};
+                        incState.step = 'INC_POINT_PLACE';
+                        const pointNo = incState.currentRoute.points.length + 1;
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
-                            makeIncomeAskFlex('🚗 จดค่าเดินทาง', 'กรุณาระบุต้นทาง', null)
+                            makeIncomeAskFlex('🚗 จดค่าเดินทาง', `จุดที่ ${pointNo}: กรุณาระบุสถานที่`, null)
                         ]});
                     } else {
+                        const route = incState.currentRoute;
+                        route.total_km = Math.round(route.points.reduce((s, p) => s + p.km, 0) * 100) / 100;
+                        route.amount = Math.round(route.total_km * KM_RATE_PER_KM * 100) / 100;
+                        incState.routes.push(route);
+                        incState.currentRoute = null;
                         incState.step = 'INC_MENU';
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
+                            makeAlertFlex('success', `บันทึกเส้นทาง ${route.date} — ${route.points.length} จุด รวม ${route.total_km} กม. = ${route.amount.toLocaleString()} บาท แล้วครับ`),
                             makeIncomeMenuFlex(incState)
                         ]});
                     }
