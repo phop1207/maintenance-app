@@ -35,7 +35,8 @@ router.get('/api/income/records', async (req, res) => {
         .eq('user_id', targetUserId)
         .gte('date', cycleStart)
         .lte('date', cycleEnd)
-        .order('date', { ascending: true });
+        .order('date', { ascending: false })
+        .order('id', { ascending: false });
 
     if (error) return res.status(500).json({ error: error.message });
     res.json(data || []);

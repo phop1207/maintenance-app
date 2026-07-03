@@ -881,9 +881,20 @@ async function loadIncomePage(targetUserId) {
     }
 }
 
+const THAI_MONTHS_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+function formatThaiDateShort(dateStr) {
+    if (!dateStr) return '-';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    if (!y || !m || !d) return dateStr;
+    return `${String(d).padStart(2, '0')} ${THAI_MONTHS_SHORT[m - 1]} ${y + 543}`;
+}
+
 async function loadIncomeRecords(targetUserId) {
-    const listEl = document.getElementById('income-records-list');
-    listEl.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">กำลังโหลด...</div>';
+    const bodyEl = document.getElementById('income-records-body');
+    const emptyEl = document.getElementById('income-records-empty');
+    const countEl = document.getElementById('income-records-count');
+    bodyEl.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">กำลังโหลด...</td></tr>';
+    emptyEl.style.display = 'none';
 
     const params = new URLSearchParams({ requester_id: currentUser.id, role: currentUser.role });
     if (currentUser.role === 'admin' && targetUserId) params.set('user_id', targetUserId);
@@ -892,33 +903,49 @@ async function loadIncomeRecords(targetUserId) {
         const res = await fetch(`/api/income/records?${params}`);
         const records = await res.json();
         if (!res.ok) {
-            listEl.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:20px;">❌ ${records.error || 'โหลดรายการไม่สำเร็จ'}</div>`;
-            return;
-        }
-        if (!records.length) {
-            listEl.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">ยังไม่มีรายการที่บันทึกไว้ในรอบบิลนี้</div>';
+            bodyEl.innerHTML = '';
+            emptyEl.textContent = `❌ ${records.error || 'โหลดรายการไม่สำเร็จ'}`;
+            emptyEl.style.display = 'block';
+            countEl.textContent = '0';
             return;
         }
 
-        listEl.innerHTML = records.map(r => `
-            <div class="admin-user-card">
-                <div class="auc-top">
-                    <div class="auc-avatar">🧾</div>
-                    <div class="auc-info">
-                        <div class="auc-name">${r.date}</div>
-                        <div class="auc-meta">OT ${(r.ot_amount || 0).toLocaleString()} · เดินทาง ${(r.travel_amount || 0).toLocaleString()} · ผ่านทาง ${(r.toll_amount || 0).toLocaleString()} · จอดรถ ${(r.parking_amount || 0).toLocaleString()} บ.</div>
-                    </div>
-                    <span class="auc-role-badge role-admin">${(r.total_amount || 0).toLocaleString()} บ.</span>
-                </div>
-                <div class="auc-actions">
-                    <button class="btn btn-edit" onclick="openIncomeDetailModal(${r.id})">✏️ ดู/แก้ไขรายละเอียด</button>
-                    <button class="btn btn-delete" onclick="deleteIncomeRecord(${r.id})">🗑️ ลบ</button>
-                </div>
-            </div>
-        `).join('');
         incomeRecordsCache = records;
+        countEl.textContent = records.length;
+
+        if (!records.length) {
+            bodyEl.innerHTML = '';
+            emptyEl.textContent = 'ยังไม่มีรายการที่บันทึกไว้ในรอบบิลนี้';
+            emptyEl.style.display = 'block';
+            return;
+        }
+
+        // เรียงจากวันที่ล่าสุดไปเก่าสุด (เผื่อ API ไม่ได้เรียงมา), ถ้าวันที่ตรงกันเรียงตาม id ล่าสุดก่อน
+        const sorted = [...records].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : b.id - a.id));
+
+        bodyEl.innerHTML = sorted.map(r => {
+            const amtCell = (v) => v ? `<span style="font-weight:600;">${v.toLocaleString()}</span>` : '<span style="color:var(--text-muted);">-</span>';
+            return `
+                <tr>
+                    <td><b>${formatThaiDateShort(r.date)}</b></td>
+                    <td>${amtCell(r.ot_amount)}</td>
+                    <td>${amtCell(r.travel_amount)}</td>
+                    <td>${amtCell(r.toll_amount)}</td>
+                    <td>${amtCell(r.parking_amount)}</td>
+                    <td><span style="background: var(--panel-bg); color: var(--accent-color); padding: 4px 10px; border-radius: 20px; font-weight: 700; display:inline-block;">${(r.total_amount || 0).toLocaleString()} บ.</span></td>
+                    <td>
+                        <div class="action-cell">
+                            <button class="btn btn-edit" onclick="openIncomeDetailModal(${r.id})">✏️ แก้ไข</button>
+                            <button class="btn btn-delete" onclick="deleteIncomeRecord(${r.id})">🗑️ ลบ</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     } catch (e) {
-        listEl.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้</div>';
+        bodyEl.innerHTML = '';
+        emptyEl.textContent = '❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+        emptyEl.style.display = 'block';
     }
 }
 
