@@ -874,10 +874,98 @@ async function loadIncomePage(targetUserId) {
 
         document.getElementById('income-total-amount').textContent = `${(summary.grandTotal || 0).toLocaleString()} บาท`;
         totalEl.style.display = '';
+
+        await loadIncomeRecords(targetUserId);
     } catch (e) {
         cycleLabelEl.textContent = '❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
     }
 }
+
+async function loadIncomeRecords(targetUserId) {
+    const listEl = document.getElementById('income-records-list');
+    listEl.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">กำลังโหลด...</div>';
+
+    const params = new URLSearchParams({ requester_id: currentUser.id, role: currentUser.role });
+    if (currentUser.role === 'admin' && targetUserId) params.set('user_id', targetUserId);
+
+    try {
+        const res = await fetch(`/api/income/records?${params}`);
+        const records = await res.json();
+        if (!res.ok) {
+            listEl.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:20px;">❌ ${records.error || 'โหลดรายการไม่สำเร็จ'}</div>`;
+            return;
+        }
+        if (!records.length) {
+            listEl.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">ยังไม่มีรายการที่บันทึกไว้ในรอบบิลนี้</div>';
+            return;
+        }
+
+        listEl.innerHTML = records.map(r => `
+            <div class="admin-user-card">
+                <div class="auc-top">
+                    <div class="auc-avatar">🧾</div>
+                    <div class="auc-info">
+                        <div class="auc-name">${r.date}</div>
+                        <div class="auc-meta">OT ${(r.ot_amount || 0).toLocaleString()} · เดินทาง ${(r.travel_amount || 0).toLocaleString()} · ผ่านทาง ${(r.toll_amount || 0).toLocaleString()} · จอดรถ ${(r.parking_amount || 0).toLocaleString()} บ.</div>
+                    </div>
+                    <span class="auc-role-badge role-admin">${(r.total_amount || 0).toLocaleString()} บ.</span>
+                </div>
+                <div class="auc-actions">
+                    <button class="btn btn-edit" onclick='editIncomeRecord(${r.id}, ${JSON.stringify({ ot_amount: r.ot_amount || 0, travel_amount: r.travel_amount || 0, toll_amount: r.toll_amount || 0, parking_amount: r.parking_amount || 0 })})'>✏️ แก้ไข</button>
+                    <button class="btn btn-delete" onclick="deleteIncomeRecord(${r.id})">🗑️ ลบ</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        listEl.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้</div>';
+    }
+}
+
+window.editIncomeRecord = async function(id, current) {
+    const askNum = (label, def) => {
+        const v = prompt(`${label} (บาท):`, def);
+        if (v === null) return null;
+        const n = Number(v);
+        return isNaN(n) || n < 0 ? undefined : n;
+    };
+    const ot = askNum('ยอด OT', current.ot_amount);
+    if (ot === null) return;
+    const travel = askNum('ยอดเดินทาง', current.travel_amount);
+    if (travel === null) return;
+    const toll = askNum('ยอดผ่านทางพิเศษ', current.toll_amount);
+    if (toll === null) return;
+    const parking = askNum('ยอดค่าจอดรถ', current.parking_amount);
+    if (parking === null) return;
+
+    if ([ot, travel, toll, parking].some(v => v === undefined)) {
+        alert('❌ กรุณากรอกจำนวนเงินเป็นตัวเลขที่ไม่ติดลบ'); return;
+    }
+
+    const res = await fetch(`/api/income/records/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            requester_id: currentUser.id, role: currentUser.role,
+            ot_amount: ot, travel_amount: travel, toll_amount: toll, parking_amount: parking
+        })
+    });
+    const data = await res.json();
+    if (!res.ok) { alert('❌ ' + data.error); return; }
+
+    const sel = document.getElementById('income-user-filter');
+    loadIncomePage(currentUser.role === 'admin' && sel ? sel.value : undefined);
+};
+
+window.deleteIncomeRecord = async function(id) {
+    if (!confirm('ยืนยันลบรายการนี้ใช่ไหมครับ? การลบนี้จะมีผลทั้งในเว็บและ LINE ทันที')) return;
+    const params = new URLSearchParams({ requester_id: currentUser.id, role: currentUser.role });
+    const res = await fetch(`/api/income/records/${id}?${params}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) { alert('❌ ' + data.error); return; }
+
+    const sel = document.getElementById('income-user-filter');
+    loadIncomePage(currentUser.role === 'admin' && sel ? sel.value : undefined);
+};
 
 // Override switchPage to trigger income load
 const _origSwitchPage3 = window.switchPage;

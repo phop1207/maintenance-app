@@ -301,10 +301,15 @@ router.post('/webhook', async (req, res) => {
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
                             makeIncomeAskFlex('🅿️ จดค่าจอดรถ', 'กรุณาระบุจำนวนเงินค่าจอดรถ (บาท)', null)
                         ]});
-                    } else if (text === '__inc_summary__' || text === '__inc_back__') {
+                    } else if (text === '__inc_summary__') {
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
                             makeIncomeSummaryFlex(incState)
                         ]});
+                    } else if (text === '__inc_back__') {
+                        // ออกจากระบบค่าตอบแทนเพิ่มเติม กลับเข้าสู่ฟังก์ชันบันทึกงานปกติ (เหมือนพิมพ์ "เริ่มต้น")
+                        delete userStates[userId];
+                        const greetFlex = makeGreetingAndShopFlex(existingUser.display_name || existingUser.username);
+                        await client.replyMessage({ replyToken: event.replyToken, messages: [greetFlex] });
                     } else if (text === '__inc_save__') {
                         const otEntries = incState.ot_entries || [];
                         const routes = incState.routes || [];

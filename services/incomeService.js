@@ -41,12 +41,29 @@ async function computeIncomeSummary({ userId, lineUserId, cycleStart, cycleEnd }
     if (userId) {
         const { data: jobs } = await supabase
             .from('jobs')
-            .select('id, job_type')
+            .select('date, time, shop_brand, shop_name, branch_code, branch_name, job_type, repair_detail, user_id')
             .eq('user_id', userId)
             .in('job_type', JOB_INCOME_TYPES)
             .gte('date', start)
             .lte('date', end);
-        jobCount = (jobs || []).length;
+
+        // งานที่มีหลายรูป จะถูกบันทึกเป็นหลายแถวใน jobs (แถวละ 1 รูป, ข้อมูลอื่นเหมือนกันหมด)
+        // ต้อง group ด้วย key เดียวกับหน้าเว็บ (groupJobsBySession) ก่อนนับ ไม่งั้นจะนับซ้ำตามจำนวนรูป
+        const sessionKeys = new Set();
+        (jobs || []).forEach(j => {
+            const key = [
+                j.date, j.time,
+                (j.shop_brand || '').toLowerCase(),
+                (j.shop_name || '').toLowerCase(),
+                (j.branch_code || '').toLowerCase(),
+                (j.branch_name || '').toLowerCase(),
+                (j.job_type || '').toLowerCase(),
+                (j.repair_detail || '').toLowerCase(),
+                j.user_id || ''
+            ].join('|');
+            sessionKeys.add(key);
+        });
+        jobCount = sessionKeys.size;
     }
     const jobAmount = jobCount * JOB_INCOME_RATE;
 

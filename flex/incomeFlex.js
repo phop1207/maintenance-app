@@ -71,8 +71,7 @@ function makeIncomeMenuFlex(state) {
                         { type: 'button', flex: 1, style: 'primary', color: '#8e44ad', action: { type: 'message', label: '🛣 ทางด่วน', text: '__inc_toll__' } },
                         { type: 'button', flex: 1, style: 'primary', color: '#16a085', action: { type: 'message', label: '🅿️ จอดรถ', text: '__inc_parking__' } }
                     ]},
-                    { type: 'button', style: 'primary', color: '#27ae60', action: { type: 'message', label: '📋 ดูสรุป & บันทึก', text: '__inc_summary__' } },
-                    { type: 'button', style: 'secondary', color: '#95a5a6', action: { type: 'message', label: '❌ ยกเลิกทั้งหมด', text: '__inc_cancel__' } }
+                    { type: 'button', style: 'primary', color: '#27ae60', action: { type: 'message', label: '📊 ดูการเบิกค่าใช้จ่ายรวม', text: '__inc_summary__' } }
                 ]
             }
         }
@@ -276,7 +275,7 @@ function makeIncomeSummaryFlex(state) {
                 type: 'box', layout: 'horizontal', spacing: 'md', paddingAll: '12px',
                 contents: [
                     { type: 'button', flex: 1, style: 'primary', color: '#27ae60', action: { type: 'message', label: '💾 บันทึก', text: '__inc_save__' } },
-                    { type: 'button', flex: 1, style: 'secondary', color: '#95a5a6', action: { type: 'message', label: '↩️ กลับเมนู', text: '__inc_back__' } }
+                    { type: 'button', flex: 1, style: 'secondary', color: '#95a5a6', action: { type: 'message', label: '↩️ กลับสู่บันทึกงาน', text: '__inc_back__' } }
                 ]
             }
         }
