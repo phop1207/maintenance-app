@@ -13,7 +13,7 @@ const {
 } = require('../flex/jobFlex');
 const { makeOverviewPeriodFlex, makeOverviewResultFlex } = require('../flex/overviewFlex');
 const {
-    makeIncomeMenuFlex, makeIncomeAskFlex, makeIncomePointMoreFlex, makeIncomeSummaryFlex
+    makeIncomeMenuFlex, makeIncomeAskFlex, makeIncomeAskSkipFlex, makeIncomePointMoreFlex, makeIncomeSummaryFlex
 } = require('../flex/incomeFlex');
 
 // ─────────────────────────────────────────────
@@ -306,8 +306,10 @@ router.post('/webhook', async (req, res) => {
                         const otAmount = otEntries.reduce((s, e) => s + e.amount, 0);
                         const travelKm = routes.reduce((s, r) => s + r.total_km, 0);
                         const travelAmount = routes.reduce((s, r) => s + r.amount, 0);
-                        const tollAmount = tolls.reduce((s, t) => s + t.amount, 0);
-                        const parkingAmount = parkings.reduce((s, t) => s + t.amount, 0);
+                        const routeTollAmount = routes.reduce((s, r) => s + (r.toll_amount || 0), 0);
+                        const routeParkingAmount = routes.reduce((s, r) => s + (r.parking_amount || 0), 0);
+                        const tollAmount = tolls.reduce((s, t) => s + t.amount, 0) + routeTollAmount;
+                        const parkingAmount = parkings.reduce((s, t) => s + t.amount, 0) + routeParkingAmount;
                         const totalAmount = otAmount + travelAmount + tollAmount + parkingAmount;
 
                         if (totalAmount <= 0) {
@@ -421,27 +423,22 @@ router.post('/webhook', async (req, res) => {
                     }
                     incState.currentRoute.date = parsed.date;
                     incState.currentPoint = {};
-                    incState.step = 'INC_POINT_PLACE';
+                    incState.step = 'INC_POINT1_DETAIL';
                     await client.replyMessage({ replyToken: event.replyToken, messages: [
-                        makeIncomeAskFlex('🚗 จดค่าเดินทาง', 'จุดที่ 1: กรุณาระบุสถานที่', null)
+                        makeIncomeAskFlex('🚗 จดค่าเดินทาง', 'จุดที่ 1: กรุณาระบุรายละเอียดงาน', 'เช่น ออกจากสำนักงาน / เริ่มงานที่ไซต์ A')
                     ]});
                     continue;
                 }
 
-                // ── เดินทาง: สถานที่ของจุดนี้ ──
-                if (incState.step === 'INC_POINT_PLACE') {
-                    incState.currentPoint.place = text;
-                    incState.step = 'INC_POINT_PURPOSE';
-                    const pointNo = incState.currentRoute.points.length + 1;
-                    await client.replyMessage({ replyToken: event.replyToken, messages: [
-                        makeIncomeAskFlex('🚗 จดค่าเดินทาง', `จุดที่ ${pointNo}: ไปทำอะไร`, 'เช่น ไปติดตั้งเครื่อง / ไปซ่อมงาน')
-                    ]});
-                    continue;
-                }
-
-                // ── เดินทาง: จุดประสงค์ของจุดนี้ ──
-                if (incState.step === 'INC_POINT_PURPOSE') {
-                    incState.currentPoint.purpose = text;
+                // ── เดินทาง: รายละเอียดงานของจุดเริ่มต้น (จุดที่ 1 ไม่มีระยะทาง) ──
+                if (incState.step === 'INC_POINT1_DETAIL') {
+                    incState.currentPoint.detail = text;
+                    incState.currentPoint.km = 0;
+                    incState.currentPoint.amount = 0;
+                    incState.currentPoint.toll_amount = 0;
+                    incState.currentPoint.parking_amount = 0;
+                    incState.currentRoute.points.push(incState.currentPoint);
+                    incState.currentPoint = null;
                     incState.step = 'INC_POINT_KM';
                     const pointNo = incState.currentRoute.points.length + 1;
                     await client.replyMessage({ replyToken: event.replyToken, messages: [
@@ -450,7 +447,7 @@ router.post('/webhook', async (req, res) => {
                     continue;
                 }
 
-                // ── เดินทาง: ระยะทางของจุดนี้ → บันทึกจุด แล้วถามว่ามีจุดต่อไปไหม ──
+                // ── เดินทาง: ระยะทางมาถึงจุดนี้ → คำนวณเงิน แล้วถามค่าจอดรถ/ค่าผ่านทางพิเศษของช่วงทางนี้ ──
                 if (incState.step === 'INC_POINT_KM') {
                     const km = parseFloat(text.replace(',', '.'));
                     if (isNaN(km) || km < 0) {
@@ -459,7 +456,62 @@ router.post('/webhook', async (req, res) => {
                         ]});
                         continue;
                     }
-                    incState.currentPoint.km = km;
+                    incState.currentPoint = { km, amount: Math.round(km * KM_RATE_PER_KM * 100) / 100 };
+                    incState.step = 'INC_POINT_PARKING';
+                    const pointNo = incState.currentRoute.points.length + 1;
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [
+                        makeIncomeAskSkipFlex('🅿️ ค่าจอดรถ', `จุดที่ ${pointNo}: ช่วงทางนี้มีค่าจอดรถไหมครับ ถ้ามีกรุณาระบุจำนวนเงิน (บาท)`, null, '⏭ ข้าม (ไม่มี)', '__inc_point_parking_skip__')
+                    ]});
+                    continue;
+                }
+
+                // ── เดินทาง: ค่าจอดรถของช่วงทางนี้ (มีปุ่มข้าม) → ถามค่าผ่านทางพิเศษต่อ ──
+                if (incState.step === 'INC_POINT_PARKING') {
+                    if (text === '__inc_point_parking_skip__') {
+                        incState.currentPoint.parking_amount = 0;
+                    } else {
+                        const amount = parseFloat(text.replace(',', '.'));
+                        if (isNaN(amount) || amount <= 0) {
+                            await client.replyMessage({ replyToken: event.replyToken, messages: [
+                                makeAlertFlex('warning', 'กรุณาระบุจำนวนเงินเป็นตัวเลขที่มากกว่า 0 เช่น 40 หรือกดปุ่มข้ามถ้าไม่มี')
+                            ]});
+                            continue;
+                        }
+                        incState.currentPoint.parking_amount = amount;
+                    }
+                    incState.step = 'INC_POINT_TOLL';
+                    const pointNo = incState.currentRoute.points.length + 1;
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [
+                        makeIncomeAskSkipFlex('🛣 ค่าผ่านทางพิเศษ', `จุดที่ ${pointNo}: ช่วงทางนี้มีค่าผ่านทางพิเศษไหมครับ ถ้ามีกรุณาระบุจำนวนเงิน (บาท)`, null, '⏭ ข้าม (ไม่มี)', '__inc_point_toll_skip__')
+                    ]});
+                    continue;
+                }
+
+                // ── เดินทาง: ค่าผ่านทางพิเศษของช่วงทางนี้ (มีปุ่มข้าม) → ถามรายละเอียดงานของจุดนี้ ──
+                if (incState.step === 'INC_POINT_TOLL') {
+                    if (text === '__inc_point_toll_skip__') {
+                        incState.currentPoint.toll_amount = 0;
+                    } else {
+                        const amount = parseFloat(text.replace(',', '.'));
+                        if (isNaN(amount) || amount <= 0) {
+                            await client.replyMessage({ replyToken: event.replyToken, messages: [
+                                makeAlertFlex('warning', 'กรุณาระบุจำนวนเงินเป็นตัวเลขที่มากกว่า 0 เช่น 65 หรือกดปุ่มข้ามถ้าไม่มี')
+                            ]});
+                            continue;
+                        }
+                        incState.currentPoint.toll_amount = amount;
+                    }
+                    incState.step = 'INC_POINT_DETAIL';
+                    const pointNo = incState.currentRoute.points.length + 1;
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [
+                        makeIncomeAskFlex('🚗 จดค่าเดินทาง', `จุดที่ ${pointNo}: กรุณาระบุรายละเอียดงาน`, 'เช่น ไปติดตั้งเครื่อง / ไปซ่อมงาน')
+                    ]});
+                    continue;
+                }
+
+                // ── เดินทาง: รายละเอียดงานของจุดนี้ → บันทึกจุด แล้วถามว่ามีจุดต่อไปไหม ──
+                if (incState.step === 'INC_POINT_DETAIL') {
+                    incState.currentPoint.detail = text;
                     incState.currentRoute.points.push(incState.currentPoint);
                     const savedPoint = incState.currentPoint;
                     incState.currentPoint = null;
@@ -473,28 +525,33 @@ router.post('/webhook', async (req, res) => {
                 // ── เดินทาง: เพิ่มจุดต่อไป หรือ บันทึกจบเส้นทาง ──
                 if (incState.step === 'INC_POINT_MORE') {
                     if (text === '__inc_point_more__') {
-                        incState.currentPoint = {};
-                        incState.step = 'INC_POINT_PLACE';
+                        incState.step = 'INC_POINT_KM';
                         const pointNo = incState.currentRoute.points.length + 1;
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
-                            makeIncomeAskFlex('🚗 จดค่าเดินทาง', `จุดที่ ${pointNo}: กรุณาระบุสถานที่`, null)
+                            makeIncomeAskFlex('🚗 จดค่าเดินทาง', `จุดที่ ${pointNo}: ระยะทางกี่กิโลเมตร`, `นับจากจุดก่อนหน้ามาถึงจุดนี้ (1 กม. = ${KM_RATE_PER_KM} บาท)`)
                         ]});
                     } else {
                         const route = incState.currentRoute;
                         route.total_km = Math.round(route.points.reduce((s, p) => s + p.km, 0) * 100) / 100;
-                        route.amount = Math.round(route.total_km * KM_RATE_PER_KM * 100) / 100;
+                        route.amount = Math.round(route.points.reduce((s, p) => s + p.amount, 0) * 100) / 100;
+                        route.toll_amount = Math.round(route.points.reduce((s, p) => s + (p.toll_amount || 0), 0) * 100) / 100;
+                        route.parking_amount = Math.round(route.points.reduce((s, p) => s + (p.parking_amount || 0), 0) * 100) / 100;
                         incState.routes.push(route);
                         incState.currentRoute = null;
                         incState.step = 'INC_MENU';
+                        const extraParts = [];
+                        if (route.toll_amount) extraParts.push(`ค่าผ่านทางพิเศษ ${route.toll_amount.toLocaleString()} บ.`);
+                        if (route.parking_amount) extraParts.push(`ค่าจอดรถ ${route.parking_amount.toLocaleString()} บ.`);
+                        const extraText = extraParts.length ? ` (+${extraParts.join(', ')})` : '';
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
-                            makeAlertFlex('success', `บันทึกเส้นทาง ${route.date} — ${route.points.length} จุด รวม ${route.total_km} กม. = ${route.amount.toLocaleString()} บาท แล้วครับ`),
+                            makeAlertFlex('success', `บันทึกเส้นทาง ${route.date} — ${route.points.length} จุด รวม ${route.total_km} กม. = ${route.amount.toLocaleString()} บาท แล้วครับ${extraText}`),
                             makeIncomeMenuFlex(incState)
                         ]});
                     }
                     continue;
                 }
 
-                // ── ค่าทางด่วน ──
+                // ── ค่าทางด่วน (จดเดี่ยว ไม่ผูกเส้นทาง) ──
                 if (incState.step === 'INC_TOLL_AMOUNT') {
                     const amount = parseFloat(text.replace(',', '.'));
                     if (isNaN(amount) || amount <= 0) {
@@ -503,7 +560,20 @@ router.post('/webhook', async (req, res) => {
                         ]});
                         continue;
                     }
-                    incState.tolls.push({ amount });
+                    incState.currentToll = { amount };
+                    incState.step = 'INC_TOLL_DETAIL';
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [
+                        makeIncomeAskFlex('🛣 จดค่าทางด่วน', 'กรุณาระบุรายละเอียด/เหตุผลของค่าทางด่วนนี้', 'เช่น เดินทางไปไซต์งาน ABC')
+                    ]});
+                    continue;
+                }
+
+                // ── ค่าทางด่วน (จดเดี่ยว): รายละเอียด → บันทึก ──
+                if (incState.step === 'INC_TOLL_DETAIL') {
+                    incState.currentToll.detail = text;
+                    incState.tolls.push(incState.currentToll);
+                    const amount = incState.currentToll.amount;
+                    incState.currentToll = null;
                     incState.step = 'INC_MENU';
                     await client.replyMessage({ replyToken: event.replyToken, messages: [
                         makeAlertFlex('success', `บันทึกค่าทางด่วน ${amount.toLocaleString()} บาท แล้วครับ`),
@@ -512,7 +582,7 @@ router.post('/webhook', async (req, res) => {
                     continue;
                 }
 
-                // ── ค่าจอดรถ ──
+                // ── ค่าจอดรถ (จดเดี่ยว ไม่ผูกเส้นทาง) ──
                 if (incState.step === 'INC_PARKING_AMOUNT') {
                     const amount = parseFloat(text.replace(',', '.'));
                     if (isNaN(amount) || amount <= 0) {
@@ -521,7 +591,20 @@ router.post('/webhook', async (req, res) => {
                         ]});
                         continue;
                     }
-                    incState.parkings.push({ amount });
+                    incState.currentParking = { amount };
+                    incState.step = 'INC_PARKING_DETAIL';
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [
+                        makeIncomeAskFlex('🅿️ จดค่าจอดรถ', 'กรุณาระบุรายละเอียด/เหตุผลของค่าจอดรถนี้', 'เช่น จอดที่ไซต์งาน ABC')
+                    ]});
+                    continue;
+                }
+
+                // ── ค่าจอดรถ (จดเดี่ยว): รายละเอียด → บันทึก ──
+                if (incState.step === 'INC_PARKING_DETAIL') {
+                    incState.currentParking.detail = text;
+                    incState.parkings.push(incState.currentParking);
+                    const amount = incState.currentParking.amount;
+                    incState.currentParking = null;
                     incState.step = 'INC_MENU';
                     await client.replyMessage({ replyToken: event.replyToken, messages: [
                         makeAlertFlex('success', `บันทึกค่าจอดรถ ${amount.toLocaleString()} บาท แล้วครับ`),
