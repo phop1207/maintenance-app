@@ -13,7 +13,7 @@ const {
 } = require('../flex/jobFlex');
 const { makeOverviewPeriodFlex, makeOverviewResultFlex } = require('../flex/overviewFlex');
 const {
-    makeIncomeMenuFlex, makeIncomeAskFlex, makeIncomeAskSkipFlex, makeIncomePointMoreFlex, makeIncomeSummaryFlex
+    makeIncomeMenuFlex, makeIncomeAskFlex, makeIncomeAskSkipFlex, makeIncomePointMoreFlex, makeIncomeSummaryFlex, makeIncomeHistoryFlex
 } = require('../flex/incomeFlex');
 
 // ─────────────────────────────────────────────
@@ -260,9 +260,27 @@ router.post('/webhook', async (req, res) => {
             // ── ระบบบันทึกค่าตอบแทนเพิ่มเติมประจำเดือน (คำสั่งลับ) ──
             if (textLower === INCOME_SECRET_COMMAND) {
                 userStates[userId] = { step: 'INC_MENU', ot_entries: [], routes: [], tolls: [], parkings: [] };
-                await client.replyMessage({ replyToken: event.replyToken, messages: [
+
+                // ดึงรายการที่เคยบันทึก (เซฟลง Supabase) ไปแล้วในเดือนนี้ มาแสดงให้ดูก่อน
+                const nowTH = new Date(Date.now() + 7 * 60 * 60 * 1000);
+                const y = nowTH.getUTCFullYear();
+                const m = nowTH.getUTCMonth();
+                const monthStart = new Date(Date.UTC(y, m, 1)).toISOString().split('T')[0];
+                const nextMonthStart = new Date(Date.UTC(y, m + 1, 1)).toISOString().split('T')[0];
+
+                const { data: pastRecords, error: historyErr } = await supabase
+                    .from('extra_income')
+                    .select('*')
+                    .eq('line_user_id', userId)
+                    .gte('date', monthStart)
+                    .lt('date', nextMonthStart)
+                    .order('date', { ascending: true });
+
+                const messages = [
+                    makeIncomeHistoryFlex(historyErr ? [] : (pastRecords || [])),
                     makeIncomeMenuFlex(userStates[userId])
-                ]});
+                ];
+                await client.replyMessage({ replyToken: event.replyToken, messages });
                 continue;
             }
 
@@ -281,7 +299,7 @@ router.post('/webhook', async (req, res) => {
                         incState.step = 'INC_TRIP_DATE';
                         incState.currentRoute = { legs: [] };
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
-                            makeIncomeAskFlex('🚗 จดค่าเดินทาง', 'กรุณาระบุวันที่เดินทาง', 'พิมพ์ "วันนี้" หรือรูปแบบ YYYY-MM-DD (รองรับบันทึกย้อนหลัง)')
+                            makeIncomeAskFlex('🚗 จดค่าเดินทาง', 'กรุณาระบุวันที่เดินทาง', 'พิมพ์ "วันนี้" หรือรูปแบบ DD-MM เช่น 20-06 (ใช้ปีปัจจุบัน, รองรับบันทึกย้อนหลัง)')
                         ]});
                     } else if (text === '__inc_toll__') {
                         incState.step = 'INC_TOLL_AMOUNT';
@@ -385,7 +403,7 @@ router.post('/webhook', async (req, res) => {
                     incState.currentOt.reason = text;
                     incState.step = 'INC_OT_DATE';
                     await client.replyMessage({ replyToken: event.replyToken, messages: [
-                        makeIncomeAskFlex('⏱ จด OT', 'กรุณาระบุวันที่ทำ OT', 'พิมพ์ "วันนี้" หรือรูปแบบ YYYY-MM-DD (รองรับบันทึกย้อนหลัง)')
+                        makeIncomeAskFlex('⏱ จด OT', 'กรุณาระบุวันที่ทำ OT', 'พิมพ์ "วันนี้" หรือรูปแบบ DD-MM เช่น 20-06 (ใช้ปีปัจจุบัน, รองรับบันทึกย้อนหลัง)')
                     ]});
                     continue;
                 }
@@ -395,7 +413,7 @@ router.post('/webhook', async (req, res) => {
                     const parsed = parseFlexibleIncomeDate(text);
                     if (!parsed.ok) {
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
-                            makeAlertFlex('warning', `รูปแบบวันที่ไม่ถูกต้องครับ พิมพ์ "วันนี้" หรือ YYYY-MM-DD เช่น ${parsed.todayStr}`)
+                            makeAlertFlex('warning', `รูปแบบวันที่ไม่ถูกต้องครับ พิมพ์ "วันนี้" หรือรูปแบบ DD-MM เช่น 20-06`)
                         ]});
                         continue;
                     }
@@ -417,7 +435,7 @@ router.post('/webhook', async (req, res) => {
                     const parsed = parseFlexibleIncomeDate(text);
                     if (!parsed.ok) {
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
-                            makeAlertFlex('warning', `รูปแบบวันที่ไม่ถูกต้องครับ พิมพ์ "วันนี้" หรือ YYYY-MM-DD เช่น ${parsed.todayStr}`)
+                            makeAlertFlex('warning', `รูปแบบวันที่ไม่ถูกต้องครับ พิมพ์ "วันนี้" หรือรูปแบบ DD-MM เช่น 20-06`)
                         ]});
                         continue;
                     }

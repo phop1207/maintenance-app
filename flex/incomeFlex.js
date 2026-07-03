@@ -279,4 +279,60 @@ function makeIncomeSummaryFlex(state) {
     };
 }
 
-module.exports = { makeIncRow, makeIncomeMenuFlex, makeIncomeAskFlex, makeIncomeAskSkipFlex, makeIncomePointMoreFlex, makeIncomeSummaryFlex };
+/** Flex: แสดงรายการที่บันทึก (และเซฟลง Supabase) ไปแล้วในเดือนนี้ */
+function makeIncomeHistoryFlex(records) {
+    const grand = records.reduce((s, r) => s + (r.total_amount || 0), 0);
+
+    const rows = records.length ? records.map((r, i) => {
+        const parts = [];
+        if (r.ot_amount) parts.push(`OT ${r.ot_amount.toLocaleString()}`);
+        if (r.travel_amount) parts.push(`เดินทาง ${r.travel_amount.toLocaleString()}`);
+        if (r.toll_amount) parts.push(`ผ่านทาง ${r.toll_amount.toLocaleString()}`);
+        if (r.parking_amount) parts.push(`จอดรถ ${r.parking_amount.toLocaleString()}`);
+        return {
+            type: 'box', layout: 'vertical', margin: i === 0 ? 'none' : 'sm',
+            contents: [
+                {
+                    type: 'box', layout: 'horizontal',
+                    contents: [
+                        { type: 'text', text: r.date, size: 'xs', weight: 'bold', color: '#2c3e50', flex: 4 },
+                        { type: 'text', text: `${(r.total_amount || 0).toLocaleString()} บ.`, size: 'xs', weight: 'bold', color: '#c0392b', flex: 3, align: 'end' }
+                    ]
+                },
+                { type: 'text', text: parts.join(' / ') || '-', size: 'xxs', color: '#888888', wrap: true }
+            ]
+        };
+    }) : [{ type: 'text', text: 'ยังไม่มีรายการที่บันทึกไว้ในเดือนนี้ครับ', size: 'sm', color: '#aaaaaa', align: 'center', margin: 'md' }];
+
+    return {
+        type: 'flex',
+        altText: `รายการที่บันทึกไว้แล้วเดือนนี้ รวม ${grand.toLocaleString()} บาท`,
+        contents: {
+            type: 'bubble',
+            header: {
+                type: 'box', layout: 'vertical', backgroundColor: '#16a085', paddingAll: '14px',
+                contents: [
+                    { type: 'text', text: '🗓️ รายการที่บันทึกไว้แล้วเดือนนี้', weight: 'bold', size: 'md', color: '#ffffff', align: 'center', wrap: true }
+                ]
+            },
+            body: {
+                type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '14px',
+                contents: [
+                    ...rows,
+                    ...(records.length ? [
+                        { type: 'separator', margin: 'md' },
+                        {
+                            type: 'box', layout: 'horizontal', margin: 'md',
+                            contents: [
+                                { type: 'text', text: 'รวมเดือนนี้ (บันทึกแล้ว)', size: 'sm', weight: 'bold', color: '#2c3e50', flex: 5 },
+                                { type: 'text', text: `${grand.toLocaleString()} บาท`, size: 'md', weight: 'bold', color: '#c0392b', flex: 4, align: 'end' }
+                            ]
+                        }
+                    ] : [])
+                ]
+            }
+        }
+    };
+}
+
+module.exports = { makeIncRow, makeIncomeMenuFlex, makeIncomeAskFlex, makeIncomeAskSkipFlex, makeIncomePointMoreFlex, makeIncomeSummaryFlex, makeIncomeHistoryFlex };

@@ -22,18 +22,35 @@ function getBrandCategory(shopName) {
     return 'Sme';
 }
 
-/** แปลงข้อความวันที่แบบยืดหยุ่น: "วันนี้"/"today" หรือ YYYY-MM-DD (ห้ามเป็นอนาคต) */
+/** แปลงข้อความวันที่แบบยืดหยุ่น: "วันนี้"/"today", DD-MM (ใช้ปีปัจจุบัน), หรือ YYYY-MM-DD (ห้ามเป็นอนาคต) */
 function parseFlexibleIncomeDate(text) {
     const nowTH = new Date(Date.now() + 7 * 60 * 60 * 1000);
     const todayStr = nowTH.toISOString().split('T')[0];
+    const currentYear = nowTH.getUTCFullYear();
     const t = (text || '').trim();
     const tLower = t.toLowerCase();
     if (t === 'วันนี้' || tLower === 'today') return { ok: true, date: todayStr };
+
+    // รูปแบบเต็ม YYYY-MM-DD (รองรับไว้เผื่อกรณีพิเศษ)
     if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
         const parsed = new Date(t);
         if (isNaN(parsed.getTime()) || t > todayStr) return { ok: false, todayStr };
         return { ok: true, date: t };
     }
+
+    // รูปแบบ DD-MM หรือ DD/MM (ใช้ปีปัจจุบันเป็นหลัก ไม่ต้องระบุปี)
+    const m = t.match(/^(\d{1,2})[-\/](\d{1,2})$/);
+    if (m) {
+        const day = parseInt(m[1], 10);
+        const month = parseInt(m[2], 10);
+        if (month < 1 || month > 12 || day < 1 || day > 31) return { ok: false, todayStr };
+        const dateStr = `${currentYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const parsed = new Date(dateStr);
+        if (isNaN(parsed.getTime()) || parsed.getUTCDate() !== day) return { ok: false, todayStr };
+        if (dateStr > todayStr) return { ok: false, todayStr };
+        return { ok: true, date: dateStr };
+    }
+
     return { ok: false, todayStr };
 }
 
