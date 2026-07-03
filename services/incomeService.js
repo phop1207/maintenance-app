@@ -145,6 +145,16 @@ function computeTotals({ otDetails = [], travelDetails = [], tollDetails = [], p
 }
 
 /**
+ * หาวันที่ "ของรายการจริง" จากรายละเอียดที่กรอกไว้ (วันที่ทำ OT หรือวันที่เดินทาง)
+ * แทนที่จะใช้วันที่อัปโหลด/บันทึกเข้าระบบเสมอ — ถ้าไม่มีวันที่ระบุไว้เลย (เช่น จดค่าผ่านทาง/จอดรถเดี่ยวๆ) ถึงจะ fallback เป็นวันนี้
+ */
+function deriveEntryDate(totals, fallbackDate) {
+    if (totals.otEntries.length && totals.otEntries[0].date) return totals.otEntries[0].date;
+    if (totals.routes.length && totals.routes[0].date) return totals.routes[0].date;
+    return fallbackDate;
+}
+
+/**
  * บันทึกรายการค่าตอบแทนเพิ่มเติมที่สะสมไว้ใน session (OT/เดินทาง/ทางด่วน/จอดรถ) ลง Supabase เป็น 1 แถว
  * คืนค่า { ok, totalAmount, error }
  */
@@ -160,7 +170,7 @@ async function saveIncomeSession(incState, lineUserId) {
 
     const { data: userRow } = await supabase.from('users').select('id').eq('line_user_id', lineUserId).single();
     const dbUserId = userRow ? userRow.id : null;
-    const dateStr = getTodayTH();
+    const dateStr = deriveEntryDate(totals, getTodayTH());
 
     const { error: saveErr } = await supabase.from('extra_income').insert([{
         user_id: dbUserId,
