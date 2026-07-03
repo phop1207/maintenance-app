@@ -3,6 +3,17 @@
 // ─────────────────────────────────────────────
 let currentUser = null; // { id, username, display_name, role }
 
+function roleLabel(role) {
+    if (role === 'admin') return '👑 Admin';
+    if (role === 'staff') return '⭐ Staff';
+    return '👤 User';
+}
+function roleBadgeClass(role) {
+    if (role === 'admin') return 'role-admin';
+    if (role === 'staff') return 'role-staff';
+    return 'role-user';
+}
+
 function getSession() {
     try {
         const s = sessionStorage.getItem('joblogger_user');
@@ -84,16 +95,21 @@ function initAfterLogin() {
     const badgeName = document.getElementById('user-badge-name');
     const badgeRole = document.getElementById('user-badge-role');
     badgeName.textContent = currentUser.display_name || currentUser.username;
-    badgeRole.textContent = currentUser.role === 'admin' ? '👑 Admin' : '👤 User';
+    badgeRole.textContent = roleLabel(currentUser.role);
     badge.style.display = 'flex';
     document.getElementById('btn-logout').style.display = 'inline-flex';
 
-    // Admin → แสดงคอลัมน์ช่าง + dropdown filter user
+    // Admin → แสดงคอลัมน์ช่าง + dropdown filter user + หน้า Admin
     if (currentUser.role === 'admin') {
         document.getElementById('col-technician').style.display = '';
         document.getElementById('filter-user').style.display = '';
         document.getElementById('nav-admin').style.display = '';
         loadUserFilterOptions();
+    }
+
+    // Admin หรือ Staff → เห็นเมนู "รายได้" (staff เห็นแค่ของตัวเอง, admin เลือกดูของใครก็ได้)
+    if (currentUser.role === 'admin' || currentUser.role === 'staff') {
+        document.getElementById('nav-income').style.display = '';
     }
 
     fetchJobs();
@@ -613,8 +629,8 @@ function renderProfilePage() {
     document.getElementById('profile-display-name').textContent = currentUser.display_name || currentUser.username;
     document.getElementById('profile-username').textContent = '@' + currentUser.username;
     const roleEl = document.getElementById('profile-role-badge');
-    roleEl.textContent = currentUser.role === 'admin' ? '👑 Admin' : '👤 User';
-    roleEl.className = 'profile-role ' + (currentUser.role === 'admin' ? 'role-admin' : 'role-user');
+    roleEl.textContent = roleLabel(currentUser.role);
+    roleEl.className = 'profile-role ' + roleBadgeClass(currentUser.role);
 }
 
 // เปลี่ยน PIN
@@ -685,7 +701,8 @@ async function loadAdminPanel() {
     // Stats
     document.getElementById('admin-stat-total').textContent = adminUsers.length;
     document.getElementById('admin-stat-admin').textContent = adminUsers.filter(u => u.role === 'admin').length;
-    document.getElementById('admin-stat-user').textContent = adminUsers.filter(u => u.role === 'user').length;
+    document.getElementById('admin-stat-staff').textContent = adminUsers.filter(u => u.role === 'staff').length;
+    document.getElementById('admin-stat-user').textContent = adminUsers.filter(u => u.role === 'user' || !u.role).length;
     document.getElementById('admin-stat-line').textContent = adminUsers.filter(u => u.has_line).length;
 
     // Render cards
@@ -698,19 +715,22 @@ async function loadAdminPanel() {
     container.innerHTML = adminUsers.map(u => `
         <div class="admin-user-card ${u.role === 'admin' ? 'card-admin' : ''}">
             <div class="auc-top">
-                <div class="auc-avatar">${u.role === 'admin' ? '👑' : '👤'}</div>
+                <div class="auc-avatar">${u.role === 'admin' ? '👑' : u.role === 'staff' ? '⭐' : '👤'}</div>
                 <div class="auc-info">
                     <div class="auc-name">${u.display_name || u.username}</div>
                     <div class="auc-meta">@${u.username} &nbsp;·&nbsp; ${u.job_count} งาน &nbsp;·&nbsp; ${u.has_line ? '🟢 มี LINE' : '⚪ ไม่มี LINE'}</div>
                 </div>
-                <span class="auc-role-badge ${u.role === 'admin' ? 'role-admin' : 'role-user'}">
-                    ${u.role === 'admin' ? 'Admin' : 'User'}
+                <span class="auc-role-badge ${roleBadgeClass(u.role)}">
+                    ${roleLabel(u.role).replace(/^[^ ]+ /, '')}
                 </span>
             </div>
             <div class="auc-actions">
-                <button class="btn btn-edit" onclick="toggleRole(${u.id}, '${u.role}')">
-                    ${u.role === 'admin' ? '⬇️ ลด Role' : '⬆️ เพิ่มเป็น Admin'}
-                </button>
+                <label style="font-size:0.78rem;color:var(--text-muted);">Role:</label>
+                <select class="role-select" onchange="changeRole(${u.id}, this.value)" style="padding:5px 8px;border-radius:8px;border:1px solid var(--border-color);background:var(--panel-bg);color:var(--text-main);font-size:0.8rem;">
+                    <option value="user" ${u.role === 'user' || !u.role ? 'selected' : ''}>User (ช่างทั่วไป)</option>
+                    <option value="staff" ${u.role === 'staff' ? 'selected' : ''}>Staff (ดูรายได้ตัวเอง)</option>
+                    <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+                </select>
                 <button class="btn btn-secondary" onclick="openResetModal(${u.id}, '${u.display_name || u.username}')">
                     🔑 รีเซ็ต PIN
                 </button>
@@ -720,9 +740,8 @@ async function loadAdminPanel() {
     `).join('');
 }
 
-window.toggleRole = async function(userId, currentRole) {
-    const newRole = currentRole === 'admin' ? 'user' : 'admin';
-    if (!confirm(`ยืนยันเปลี่ยน role เป็น "${newRole}" ใช่ไหมครับ?`)) return;
+window.changeRole = async function(userId, newRole) {
+    if (!confirm(`ยืนยันเปลี่ยน role เป็น "${newRole}" ใช่ไหมครับ?`)) { loadAdminPanel(); return; }
     const res = await fetch(`/api/admin/users/${userId}/role`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -782,4 +801,89 @@ const _origSwitchPage2 = window.switchPage;
 window.switchPage = function(pageTarget) {
     _origSwitchPage2(pageTarget);
     if (pageTarget === 'admin' && currentUser && currentUser.role === 'admin') loadAdminPanel();
+};
+
+// ─────────────────────────────────────────────
+// Income Page (รายได้)
+// ─────────────────────────────────────────────
+let incomeUsersLoaded = false;
+
+async function loadIncomeUserOptions() {
+    const wrap = document.getElementById('income-user-select');
+    const sel = document.getElementById('income-user-filter');
+    wrap.style.display = '';
+    if (incomeUsersLoaded) return;
+    const res = await fetch('/api/auth/users');
+    if (!res.ok) return;
+    const users = await res.json();
+    sel.innerHTML = '';
+    users.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.id;
+        opt.textContent = (u.display_name || u.username) + (u.id === currentUser.id ? ' (ตัวเอง)' : '');
+        if (u.id === currentUser.id) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    sel.addEventListener('change', () => loadIncomePage(sel.value));
+    incomeUsersLoaded = true;
+}
+
+async function loadIncomePage(targetUserId) {
+    if (!currentUser) return;
+    const cycleLabelEl = document.getElementById('income-cycle-label');
+    const breakdownEl = document.getElementById('income-breakdown');
+    const totalEl = document.getElementById('income-total');
+
+    if (currentUser.role === 'admin') {
+        await loadIncomeUserOptions();
+    }
+
+    cycleLabelEl.textContent = 'กำลังโหลด...';
+    breakdownEl.innerHTML = '';
+    totalEl.style.display = 'none';
+
+    const params = new URLSearchParams({ requester_id: currentUser.id, role: currentUser.role });
+    if (currentUser.role === 'admin' && targetUserId) params.set('user_id', targetUserId);
+
+    try {
+        const res = await fetch(`/api/income/summary?${params}`);
+        const summary = await res.json();
+        if (!res.ok) {
+            cycleLabelEl.textContent = '❌ ' + (summary.error || 'โหลดข้อมูลไม่สำเร็จ');
+            return;
+        }
+
+        cycleLabelEl.textContent = `รอบบิล ${summary.cycleStart} ถึง ${summary.cycleEnd}`;
+
+        const rows = [
+            { label: '🔧 งานซ่อม/MA', detail: `${summary.jobCount} ใบ x 100 บ.`, amount: summary.jobAmount },
+            { label: '⏱ OT', detail: '', amount: summary.otAmount },
+            { label: '🚗 เดินทาง', detail: '', amount: summary.travelAmount },
+            { label: '🛣 ผ่านทางพิเศษ', detail: '', amount: summary.tollAmount },
+            { label: '🅿️ จอดรถ', detail: '', amount: summary.parkingAmount }
+        ];
+        breakdownEl.innerHTML = rows.map(r => `
+            <div class="income-row">
+                <div>
+                    <div class="ir-label">${r.label}</div>
+                    ${r.detail ? `<div class="ir-detail">${r.detail}</div>` : ''}
+                </div>
+                <div class="ir-amount">${(r.amount || 0).toLocaleString()} บ.</div>
+            </div>
+        `).join('');
+
+        document.getElementById('income-total-amount').textContent = `${(summary.grandTotal || 0).toLocaleString()} บาท`;
+        totalEl.style.display = '';
+    } catch (e) {
+        cycleLabelEl.textContent = '❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+    }
+}
+
+// Override switchPage to trigger income load
+const _origSwitchPage3 = window.switchPage;
+window.switchPage = function(pageTarget) {
+    _origSwitchPage3(pageTarget);
+    if (pageTarget === 'income' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
+        loadIncomePage(currentUser.role === 'admin' ? currentUser.id : undefined);
+    }
 };

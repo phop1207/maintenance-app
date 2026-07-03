@@ -16,6 +16,7 @@ const pagesRouter = require('./routes/pages');
 const jobsApiRouter = require('./routes/jobsApi');
 const authApiRouter = require('./routes/authApi');
 const adminApiRouter = require('./routes/adminApi');
+const incomeApiRouter = require('./routes/incomeApi');
 const webhookRouter = require('./routes/webhook');
 const { router: healthRouter, startKeepAlive } = require('./routes/health');
 
@@ -23,6 +24,7 @@ app.use(pagesRouter);
 app.use(jobsApiRouter);
 app.use(authApiRouter);
 app.use(adminApiRouter);
+app.use(incomeApiRouter);
 app.use(webhookRouter);
 app.use(healthRouter);
 

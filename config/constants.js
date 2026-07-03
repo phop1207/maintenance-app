@@ -5,6 +5,9 @@
 const INCOME_SECRET_COMMAND = 'phopcheck';
 const OT_RATE_PER_HOUR = 125;   // บาท/ชั่วโมง
 const KM_RATE_PER_KM = 5;       // บาท/กิโลเมตร
+const JOB_INCOME_RATE = 100;               // บาท/ใบงาน (Repair, Maintenance)
+const JOB_INCOME_TYPES = ['Repair', 'Maintenance'];
+const BILLING_CYCLE_START_DAY = 26;        // รอบบิล: วันที่ 26 ถึง 25 ของเดือนถัดไป
 
 const AUTO_BRANCH_SHOPS = ['mk'];
 
@@ -39,6 +42,9 @@ module.exports = {
     INCOME_SECRET_COMMAND,
     OT_RATE_PER_HOUR,
     KM_RATE_PER_KM,
+    JOB_INCOME_RATE,
+    JOB_INCOME_TYPES,
+    BILLING_CYCLE_START_DAY,
     AUTO_BRANCH_SHOPS,
     STORAGE_BUCKET,
     BRANCH_MAP

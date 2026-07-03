@@ -329,15 +329,42 @@
                     <h2>⚙️ Admin — จัดการผู้ใช้งาน</h2>
                 </div>
 
-                <div id="admin-stats-row" class="admin-stats-row">
+                <div id="admin-stats-row" class="admin-stats-row" style="grid-template-columns: repeat(5, 1fr);">
                     <div class="admin-stat-box"><span id="admin-stat-total">0</span><small>ผู้ใช้ทั้งหมด</small></div>
                     <div class="admin-stat-box"><span id="admin-stat-admin">0</span><small>Admin</small></div>
+                    <div class="admin-stat-box"><span id="admin-stat-staff">0</span><small>Staff</small></div>
                     <div class="admin-stat-box"><span id="admin-stat-user">0</span><small>User</small></div>
                     <div class="admin-stat-box"><span id="admin-stat-line">0</span><small>ผูก LINE แล้ว</small></div>
                 </div>
 
                 <div id="admin-user-list" class="admin-user-list">
                     <div style="text-align:center; color:var(--text-muted); padding:30px;">กำลังโหลด...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════ Income Page (รายได้) ════ -->
+        <div id="page-income" class="app-page">
+            <div class="card">
+                <div class="card-header">
+                    <span class="indicator color-green"></span>
+                    <h2>💰 สรุปรายได้</h2>
+                </div>
+
+                <div id="income-user-select" class="income-user-select" style="display:none;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="income-user-filter">ดูรายได้ของ</label>
+                        <select id="income-user-filter"></select>
+                    </div>
+                </div>
+
+                <div id="income-cycle-label" class="income-cycle-label">กำลังโหลด...</div>
+
+                <div id="income-breakdown" class="income-breakdown"></div>
+
+                <div id="income-total" class="income-row-total" style="display:none;">
+                    <span class="irt-label">รวมรายได้ทั้งหมด</span>
+                    <span class="irt-amount" id="income-total-amount">0 บาท</span>
                 </div>
             </div>
         </div>
@@ -410,6 +437,10 @@
         <button id="nav-profile" class="nav-item" onclick="switchPage('profile')">
             <span class="nav-icon">👤</span>
             <span class="nav-label">โปรไฟล์</span>
+        </button>
+        <button id="nav-income" class="nav-item" style="display:none;" onclick="switchPage('income')">
+            <span class="nav-icon">💰</span>
+            <span class="nav-label">รายได้</span>
         </button>
         <button id="nav-admin" class="nav-item" style="display:none;" onclick="switchPage('admin')">
             <span class="nav-icon">⚙️</span>

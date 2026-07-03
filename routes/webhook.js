@@ -7,13 +7,14 @@ const { BRANCH_MAP, AUTO_BRANCH_SHOPS, INCOME_SECRET_COMMAND, OT_RATE_PER_HOUR, 
 const { capitalizeTextBackend, getBrandCategory, parseFlexibleIncomeDate } = require('../utils/textHelpers');
 const { uploadImageToStorage } = require('../services/imageStorage');
 const { saveJobToDatabase, sendJobSummaryAfterImage } = require('../services/jobService');
+const { computeIncomeSummary } = require('../services/incomeService');
 const {
     makeGreetingAndShopFlex, makeShopConfirmFlex,
     makeJobTypeFlex, makeRepairDetailFlex, makeAskMoreImageFlex, makeAlertFlex, makeDatePickerFlex
 } = require('../flex/jobFlex');
 const { makeOverviewPeriodFlex, makeOverviewResultFlex } = require('../flex/overviewFlex');
 const {
-    makeIncomeMenuFlex, makeIncomeAskFlex, makeIncomeAskSkipFlex, makeIncomePointMoreFlex, makeIncomeSummaryFlex, makeIncomeHistoryFlex
+    makeIncomeMenuFlex, makeIncomeAskFlex, makeIncomeAskSkipFlex, makeIncomePointMoreFlex, makeIncomeSummaryFlex, makeIncomeHistoryFlex, makeIncomeCurrentSummaryFlex
 } = require('../flex/incomeFlex');
 
 // ─────────────────────────────────────────────
@@ -261,23 +262,12 @@ router.post('/webhook', async (req, res) => {
             if (textLower === INCOME_SECRET_COMMAND) {
                 userStates[userId] = { step: 'INC_MENU', ot_entries: [], routes: [], tolls: [], parkings: [] };
 
-                // ดึงรายการที่เคยบันทึก (เซฟลง Supabase) ไปแล้วในเดือนนี้ มาแสดงให้ดูก่อน
-                const nowTH = new Date(Date.now() + 7 * 60 * 60 * 1000);
-                const y = nowTH.getUTCFullYear();
-                const m = nowTH.getUTCMonth();
-                const monthStart = new Date(Date.UTC(y, m, 1)).toISOString().split('T')[0];
-                const nextMonthStart = new Date(Date.UTC(y, m + 1, 1)).toISOString().split('T')[0];
-
-                const { data: pastRecords, error: historyErr } = await supabase
-                    .from('extra_income')
-                    .select('*')
-                    .eq('line_user_id', userId)
-                    .gte('date', monthStart)
-                    .lt('date', nextMonthStart)
-                    .order('date', { ascending: true });
+                // สรุปรายได้ปัจจุบัน (รอบบิล 26-25): ใบงาน Repair/MA x100 + ค่าตอบแทนเพิ่มเติมที่เคยบันทึกไว้แล้ว
+                const { data: userRow } = await supabase.from('users').select('id').eq('line_user_id', userId).single();
+                const summary = await computeIncomeSummary({ userId: userRow ? userRow.id : null, lineUserId: userId });
 
                 const messages = [
-                    makeIncomeHistoryFlex(historyErr ? [] : (pastRecords || [])),
+                    makeIncomeCurrentSummaryFlex(summary),
                     makeIncomeMenuFlex(userStates[userId])
                 ];
                 await client.replyMessage({ replyToken: event.replyToken, messages });
@@ -373,6 +363,23 @@ router.post('/webhook', async (req, res) => {
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
                             makeAlertFlex('warning', 'ยกเลิกการบันทึกค่าตอบแทนเพิ่มเติมแล้วครับ')
                         ]});
+                    } else if (/^__inc_del_(ot|route|toll|parking)_\d+__$/.test(text)) {
+                        const m = text.match(/^__inc_del_(ot|route|toll|parking)_(\d+)__$/);
+                        const kind = m[1];
+                        const idx = parseInt(m[2], 10);
+                        const listKey = kind === 'ot' ? 'ot_entries' : kind === 'route' ? 'routes' : kind === 'toll' ? 'tolls' : 'parkings';
+                        const list = incState[listKey] || [];
+                        if (idx >= 0 && idx < list.length) {
+                            list.splice(idx, 1);
+                            await client.replyMessage({ replyToken: event.replyToken, messages: [
+                                makeAlertFlex('success', 'ลบรายการแล้วครับ'),
+                                makeIncomeSummaryFlex(incState)
+                            ]});
+                        } else {
+                            await client.replyMessage({ replyToken: event.replyToken, messages: [
+                                makeIncomeSummaryFlex(incState)
+                            ]});
+                        }
                     } else {
                         await client.replyMessage({ replyToken: event.replyToken, messages: [
                             makeIncomeMenuFlex(incState)

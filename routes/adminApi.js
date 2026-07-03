@@ -33,8 +33,8 @@ router.get('/api/admin/users', async (req, res) => {
 // แก้ Role
 router.patch('/api/admin/users/:id/role', async (req, res) => {
     const { role } = req.body;
-    if (!['admin', 'user'].includes(role))
-        return res.status(400).json({ error: 'role ต้องเป็น admin หรือ user เท่านั้น' });
+    if (!['admin', 'staff', 'user'].includes(role))
+        return res.status(400).json({ error: 'role ต้องเป็น admin, staff หรือ user เท่านั้น' });
 
     const { error } = await supabase.from('users').update({ role }).eq('id', req.params.id);
     if (error) return res.status(500).json({ error: error.message });

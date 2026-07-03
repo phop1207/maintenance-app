@@ -193,20 +193,22 @@ function makeIncomeSummaryFlex(state) {
     const detailRows = [];
     otEntries.forEach((e, i) => {
         detailRows.push({
-            type: 'box', layout: 'horizontal', margin: i === 0 ? 'none' : 'md',
+            type: 'box', layout: 'horizontal', margin: i === 0 ? 'none' : 'md', alignItems: 'center',
             contents: [
-                { type: 'text', text: `⏱ OT #${i + 1} — ${e.date} (${e.hours} ชม.)`, size: 'xs', weight: 'bold', color: '#2c3e50', flex: 6, wrap: true },
-                { type: 'text', text: `${e.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' }
+                { type: 'text', text: `⏱ OT #${i + 1} — ${e.date} (${e.hours} ชม.)`, size: 'xs', weight: 'bold', color: '#2c3e50', flex: 5, wrap: true },
+                { type: 'text', text: `${e.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' },
+                { type: 'button', flex: 2, height: 'sm', style: 'link', color: '#e74c3c', action: { type: 'message', label: '🗑 ลบ', text: `__inc_del_ot_${i}__` } }
             ]
         });
         detailRows.push({ type: 'text', text: `เหตุผล: ${e.reason}`, size: 'xxs', color: '#888888', margin: 'xs', wrap: true });
     });
     routes.forEach((r, i) => {
         detailRows.push({
-            type: 'box', layout: 'horizontal', margin: 'md',
+            type: 'box', layout: 'horizontal', margin: 'md', alignItems: 'center',
             contents: [
-                { type: 'text', text: `🚗 เดินทาง #${i + 1} — ${r.date} (${r.total_km} กม.)`, size: 'xs', weight: 'bold', color: '#2c3e50', flex: 6, wrap: true },
-                { type: 'text', text: `${r.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' }
+                { type: 'text', text: `🚗 เดินทาง #${i + 1} — ${r.date} (${r.total_km} กม.)`, size: 'xs', weight: 'bold', color: '#2c3e50', flex: 5, wrap: true },
+                { type: 'text', text: `${r.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' },
+                { type: 'button', flex: 2, height: 'sm', style: 'link', color: '#e74c3c', action: { type: 'message', label: '🗑 ลบ', text: `__inc_del_route_${i}__` } }
             ]
         });
         r.legs.forEach((l, j) => {
@@ -225,20 +227,22 @@ function makeIncomeSummaryFlex(state) {
     });
     tolls.forEach((t, i) => {
         detailRows.push({
-            type: 'box', layout: 'horizontal', margin: 'md',
+            type: 'box', layout: 'horizontal', margin: 'md', alignItems: 'center',
             contents: [
-                { type: 'text', text: `🛣 ค่าทางด่วน #${i + 1}`, size: 'xs', color: '#555555', flex: 6 },
-                { type: 'text', text: `${t.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' }
+                { type: 'text', text: `🛣 ค่าทางด่วน #${i + 1}`, size: 'xs', color: '#555555', flex: 5 },
+                { type: 'text', text: `${t.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' },
+                { type: 'button', flex: 2, height: 'sm', style: 'link', color: '#e74c3c', action: { type: 'message', label: '🗑 ลบ', text: `__inc_del_toll_${i}__` } }
             ]
         });
         if (t.detail) detailRows.push({ type: 'text', text: `   ${t.detail}`, size: 'xxs', color: '#888888', margin: 'xs', wrap: true });
     });
     parkings.forEach((t, i) => {
         detailRows.push({
-            type: 'box', layout: 'horizontal', margin: 'md',
+            type: 'box', layout: 'horizontal', margin: 'md', alignItems: 'center',
             contents: [
-                { type: 'text', text: `🅿️ ค่าจอดรถ #${i + 1}`, size: 'xs', color: '#555555', flex: 6 },
-                { type: 'text', text: `${t.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' }
+                { type: 'text', text: `🅿️ ค่าจอดรถ #${i + 1}`, size: 'xs', color: '#555555', flex: 5 },
+                { type: 'text', text: `${t.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' },
+                { type: 'button', flex: 2, height: 'sm', style: 'link', color: '#e74c3c', action: { type: 'message', label: '🗑 ลบ', text: `__inc_del_parking_${i}__` } }
             ]
         });
         if (t.detail) detailRows.push({ type: 'text', text: `   ${t.detail}`, size: 'xxs', color: '#888888', margin: 'xs', wrap: true });
@@ -335,4 +339,54 @@ function makeIncomeHistoryFlex(records) {
     };
 }
 
-module.exports = { makeIncRow, makeIncomeMenuFlex, makeIncomeAskFlex, makeIncomeAskSkipFlex, makeIncomePointMoreFlex, makeIncomeSummaryFlex, makeIncomeHistoryFlex };
+/** Flex: สรุปรายได้ปัจจุบันของรอบบิล (26 - 25) แยกเป็นหมวด: งานซ่อม/MA, OT, เดินทาง, ผ่านทาง, จอดรถ */
+function makeIncomeCurrentSummaryFlex(summary) {
+    const {
+        cycleStart, cycleEnd, jobCount, jobAmount,
+        otAmount, travelAmount, tollAmount, parkingAmount, grandTotal
+    } = summary;
+
+    const row = (label, detail, amount) => ({
+        type: 'box', layout: 'horizontal', margin: 'sm', alignItems: 'center',
+        contents: [
+            { type: 'text', text: label, size: 'sm', color: '#2c3e50', flex: 4 },
+            { type: 'text', text: detail || '-', size: 'xs', color: '#888888', flex: 4 },
+            { type: 'text', text: `${amount.toLocaleString()} บ.`, size: 'sm', weight: 'bold', color: '#c0392b', flex: 3, align: 'end' }
+        ]
+    });
+
+    return {
+        type: 'flex',
+        altText: `รายได้ปัจจุบัน (${cycleStart} - ${cycleEnd}) รวม ${grandTotal.toLocaleString()} บาท`,
+        contents: {
+            type: 'bubble',
+            header: {
+                type: 'box', layout: 'vertical', backgroundColor: '#16a085', paddingAll: '14px',
+                contents: [
+                    { type: 'text', text: '💰 สรุปรายได้ปัจจุบัน', weight: 'bold', size: 'md', color: '#ffffff', align: 'center' },
+                    { type: 'text', text: `รอบบิล ${cycleStart} ถึง ${cycleEnd}`, size: 'xxs', color: '#eafaf1', align: 'center', margin: 'xs', wrap: true }
+                ]
+            },
+            body: {
+                type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '14px',
+                contents: [
+                    row('🔧 งานซ่อม/MA', `${jobCount} ใบ x 100 บ.`, jobAmount),
+                    row('⏱ OT', null, otAmount),
+                    row('🚗 เดินทาง', null, travelAmount),
+                    row('🛣 ผ่านทาง', null, tollAmount),
+                    row('🅿️ จอดรถ', null, parkingAmount),
+                    { type: 'separator', margin: 'md' },
+                    {
+                        type: 'box', layout: 'horizontal', margin: 'md',
+                        contents: [
+                            { type: 'text', text: 'รวมรายได้ทั้งหมด', size: 'sm', weight: 'bold', color: '#2c3e50', flex: 5 },
+                            { type: 'text', text: `${grandTotal.toLocaleString()} บาท`, size: 'md', weight: 'bold', color: '#c0392b', flex: 4, align: 'end' }
+                        ]
+                    }
+                ]
+            }
+        }
+    };
+}
+
+module.exports = { makeIncRow, makeIncomeMenuFlex, makeIncomeAskFlex, makeIncomeAskSkipFlex, makeIncomePointMoreFlex, makeIncomeSummaryFlex, makeIncomeHistoryFlex, makeIncomeCurrentSummaryFlex };
