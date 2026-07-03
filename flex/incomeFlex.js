@@ -21,9 +21,7 @@ function makeIncomeMenuFlex(state) {
     const tolls = state.tolls || [];
     const parkings = state.parkings || [];
 
-    const otHours = otEntries.reduce((s, e) => s + e.hours, 0);
     const otAmount = otEntries.reduce((s, e) => s + e.amount, 0);
-    const travelKm = routes.reduce((s, r) => s + r.total_km, 0);
     const travelAmount = routes.reduce((s, r) => s + r.amount, 0);
     const routeTollAmount = routes.reduce((s, r) => s + (r.toll_amount || 0), 0);
     const routeParkingAmount = routes.reduce((s, r) => s + (r.parking_amount || 0), 0);
@@ -43,25 +41,8 @@ function makeIncomeMenuFlex(state) {
                     { type: 'text', text: '⚠️ ไม่ใช่รายได้หลัก — ใช้บันทึก/สรุปเท่านั้น', size: 'xxs', color: '#f1c40f', align: 'center', margin: 'xs', wrap: true }
                 ]
             },
-            body: {
-                type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '14px',
-                contents: [
-                    makeIncRow('⏱ OT', `${otHours} ชม.`, otAmount),
-                    makeIncRow('🚗 เดินทาง', `${routes.length} เที่ยว / ${travelKm} กม.`, travelAmount),
-                    makeIncRow('🛣 ทางด่วน', `${tolls.length} รายการ`, tollAmount),
-                    makeIncRow('🅿️ ที่จอดรถ', `${parkings.length} รายการ`, parkingAmount),
-                    { type: 'separator', margin: 'md' },
-                    {
-                        type: 'box', layout: 'horizontal', margin: 'md',
-                        contents: [
-                            { type: 'text', text: 'รวมทั้งหมด', size: 'sm', weight: 'bold', color: '#2c3e50', flex: 5 },
-                            { type: 'text', text: `${grand.toLocaleString()} บาท`, size: 'md', weight: 'bold', color: '#c0392b', flex: 4, align: 'end' }
-                        ]
-                    }
-                ]
-            },
             footer: {
-                type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '12px',
+                type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '14px',
                 contents: [
                     { type: 'box', layout: 'horizontal', spacing: 'sm', contents: [
                         { type: 'button', flex: 1, style: 'primary', color: '#e67e22', action: { type: 'message', label: '⏱ จด OT', text: '__inc_ot__' } },
