@@ -129,30 +129,29 @@ function makeIncomeAskSkipFlex(title, promptText, hint, skipLabel, skipText) {
     };
 }
 
-/** Flex: บันทึกจุดเดินทางแล้ว + ปุ่มเพิ่มจุดต่อไป / บันทึก (จบเส้นทาง) */
-function makeIncomePointMoreFlex(route, point) {
-    const pointRows = route.points.map((p, i) => {
+/** Flex: บันทึกช่วงทางแล้ว + ปุ่มเพิ่มช่วงทางต่อไป / บันทึก (จบเส้นทาง) */
+function makeIncomePointMoreFlex(route, leg) {
+    const legRows = route.legs.map((l, i) => {
         const extras = [];
-        if (p.toll_amount) extras.push(`ทางด่วน ${p.toll_amount.toLocaleString()} บ.`);
-        if (p.parking_amount) extras.push(`จอดรถ ${p.parking_amount.toLocaleString()} บ.`);
+        if (l.toll_amount) extras.push(`ผ่านทาง ${l.toll_amount.toLocaleString()} บ.`);
+        if (l.parking_amount) extras.push(`จอดรถ ${l.parking_amount.toLocaleString()} บ.`);
         const extraText = extras.length ? ` (+${extras.join(', ')})` : '';
-        const kmText = i === 0 ? '' : ` — ${p.km} กม.`;
         return {
             type: 'text',
-            text: `${i + 1}. ${p.detail}${kmText}${extraText}`,
+            text: `${i + 1}. ${l.from} → ${l.to} — ${l.job} (${l.km} กม. = ${l.amount.toLocaleString()} บ.)${extraText}`,
             size: 'xs', color: '#555555', wrap: true, margin: i === 0 ? 'none' : 'xs'
         };
     });
 
     return {
         type: 'flex',
-        altText: `บันทึกจุดที่ ${route.points.length}: ${point.detail} แล้ว`,
+        altText: `บันทึกช่วงทางที่ ${route.legs.length}: ${leg.from} → ${leg.to} แล้ว`,
         contents: {
             type: 'bubble',
             header: {
                 type: 'box', layout: 'vertical', backgroundColor: '#27ae60', paddingAll: '14px',
                 contents: [
-                    { type: 'text', text: `✅ บันทึกจุดที่ ${route.points.length} แล้ว`, weight: 'bold', size: 'md', color: '#ffffff', align: 'center' },
+                    { type: 'text', text: `✅ บันทึกช่วงทางที่ ${route.legs.length} แล้ว`, weight: 'bold', size: 'md', color: '#ffffff', align: 'center' },
                     { type: 'text', text: `วันที่ ${route.date}`, size: 'xs', color: '#eafaf1', align: 'center', margin: 'xs' }
                 ]
             },
@@ -160,15 +159,15 @@ function makeIncomePointMoreFlex(route, point) {
                 type: 'box', layout: 'vertical', spacing: 'xs', paddingAll: '14px',
                 contents: [
                     { type: 'text', text: '📍 เส้นทางที่บันทึกไว้:', size: 'xs', color: '#888888' },
-                    ...pointRows,
+                    ...legRows,
                     { type: 'separator', margin: 'sm' },
-                    { type: 'text', text: `มีจุดต่อไปอีกไหมครับ?`, size: 'sm', weight: 'bold', color: '#2c3e50', margin: 'sm', wrap: true }
+                    { type: 'text', text: `มีช่วงทางต่อไปอีกไหมครับ?`, size: 'sm', weight: 'bold', color: '#2c3e50', margin: 'sm', wrap: true }
                 ]
             },
             footer: {
                 type: 'box', layout: 'horizontal', spacing: 'md', paddingAll: '12px',
                 contents: [
-                    { type: 'button', flex: 1, style: 'primary', color: '#3498db', action: { type: 'message', label: '➕ จุดต่อไป', text: '__inc_point_more__' } },
+                    { type: 'button', flex: 1, style: 'primary', color: '#3498db', action: { type: 'message', label: '➕ ช่วงทางต่อไป', text: '__inc_point_more__' } },
                     { type: 'button', flex: 1, style: 'primary', color: '#27ae60', action: { type: 'message', label: '💾 บันทึก', text: '__inc_point_done__' } }
                 ]
             }
@@ -210,13 +209,12 @@ function makeIncomeSummaryFlex(state) {
                 { type: 'text', text: `${r.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' }
             ]
         });
-        r.points.forEach((p, j) => {
+        r.legs.forEach((l, j) => {
             const extras = [];
-            if (p.toll_amount) extras.push(`ทางด่วน ${p.toll_amount.toLocaleString()} บ.`);
-            if (p.parking_amount) extras.push(`จอดรถ ${p.parking_amount.toLocaleString()} บ.`);
+            if (l.toll_amount) extras.push(`ผ่านทาง ${l.toll_amount.toLocaleString()} บ.`);
+            if (l.parking_amount) extras.push(`จอดรถ ${l.parking_amount.toLocaleString()} บ.`);
             const extraText = extras.length ? ` (+${extras.join(', ')})` : '';
-            const kmText = j === 0 ? '' : ` — ${p.km} กม.`;
-            detailRows.push({ type: 'text', text: `   ${j + 1}. ${p.detail}${kmText}${extraText}`, size: 'xxs', color: '#888888', margin: 'xs', wrap: true });
+            detailRows.push({ type: 'text', text: `   ${j + 1}. ${l.from} → ${l.to} — ${l.job} (${l.km} กม. = ${l.amount.toLocaleString()} บ.)${extraText}`, size: 'xxs', color: '#888888', margin: 'xs', wrap: true });
         });
         if (r.toll_amount) {
             detailRows.push({ type: 'text', text: `   🛣 ค่าทางด่วน (เส้นทางนี้): ${r.toll_amount.toLocaleString()} บ.`, size: 'xxs', color: '#888888', margin: 'xs', wrap: true });
