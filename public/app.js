@@ -911,50 +911,16 @@ async function loadIncomeRecords(targetUserId) {
                     <span class="auc-role-badge role-admin">${(r.total_amount || 0).toLocaleString()} บ.</span>
                 </div>
                 <div class="auc-actions">
-                    <button class="btn btn-edit" onclick='editIncomeRecord(${r.id}, ${JSON.stringify({ ot_amount: r.ot_amount || 0, travel_amount: r.travel_amount || 0, toll_amount: r.toll_amount || 0, parking_amount: r.parking_amount || 0 })})'>✏️ แก้ไข</button>
+                    <button class="btn btn-edit" onclick="openIncomeDetailModal(${r.id})">✏️ ดู/แก้ไขรายละเอียด</button>
                     <button class="btn btn-delete" onclick="deleteIncomeRecord(${r.id})">🗑️ ลบ</button>
                 </div>
             </div>
         `).join('');
+        incomeRecordsCache = records;
     } catch (e) {
         listEl.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้</div>';
     }
 }
-
-window.editIncomeRecord = async function(id, current) {
-    const askNum = (label, def) => {
-        const v = prompt(`${label} (บาท):`, def);
-        if (v === null) return null;
-        const n = Number(v);
-        return isNaN(n) || n < 0 ? undefined : n;
-    };
-    const ot = askNum('ยอด OT', current.ot_amount);
-    if (ot === null) return;
-    const travel = askNum('ยอดเดินทาง', current.travel_amount);
-    if (travel === null) return;
-    const toll = askNum('ยอดผ่านทางพิเศษ', current.toll_amount);
-    if (toll === null) return;
-    const parking = askNum('ยอดค่าจอดรถ', current.parking_amount);
-    if (parking === null) return;
-
-    if ([ot, travel, toll, parking].some(v => v === undefined)) {
-        alert('❌ กรุณากรอกจำนวนเงินเป็นตัวเลขที่ไม่ติดลบ'); return;
-    }
-
-    const res = await fetch(`/api/income/records/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            requester_id: currentUser.id, role: currentUser.role,
-            ot_amount: ot, travel_amount: travel, toll_amount: toll, parking_amount: parking
-        })
-    });
-    const data = await res.json();
-    if (!res.ok) { alert('❌ ' + data.error); return; }
-
-    const sel = document.getElementById('income-user-filter');
-    loadIncomePage(currentUser.role === 'admin' && sel ? sel.value : undefined);
-};
 
 window.deleteIncomeRecord = async function(id) {
     if (!confirm('ยืนยันลบรายการนี้ใช่ไหมครับ? การลบนี้จะมีผลทั้งในเว็บและ LINE ทันที')) return;
@@ -963,6 +929,197 @@ window.deleteIncomeRecord = async function(id) {
     const data = await res.json();
     if (!res.ok) { alert('❌ ' + data.error); return; }
 
+    const sel = document.getElementById('income-user-filter');
+    loadIncomePage(currentUser.role === 'admin' && sel ? sel.value : undefined);
+};
+
+// ─────────────────────────────────────────────
+// Income Detail Editor Modal (ดู/แก้ไขรายละเอียดเต็ม: OT / เดินทาง / ผ่านทาง / จอดรถ)
+// ─────────────────────────────────────────────
+let incomeRecordsCache = [];
+let incomeDetailDraft = null; // { id, date, ot:[], travel:[{date, legs:[]}], toll:[], parking:[] }
+const OT_RATE_DISPLAY = 125;
+const KM_RATE_DISPLAY = 5;
+
+window.openIncomeDetailModal = function(id) {
+    const record = incomeRecordsCache.find(r => r.id === id);
+    if (!record) return;
+
+    incomeDetailDraft = {
+        id: record.id,
+        date: record.date,
+        ot: JSON.parse(JSON.stringify(record.ot_details || [])),
+        travel: JSON.parse(JSON.stringify(record.travel_details || [])),
+        toll: JSON.parse(JSON.stringify(record.toll_details || [])),
+        parking: JSON.parse(JSON.stringify(record.parking_details || []))
+    };
+    // เผื่อรายการเก่าที่ยังไม่มี toll_details/parking_details (บันทึกก่อนอัปเดตระบบ) ให้ยกยอดรวมเดิมมาเป็นรายการเดียว
+    if (!incomeDetailDraft.toll.length && record.toll_amount) {
+        incomeDetailDraft.toll = [{ amount: record.toll_amount, detail: '(ยอดเดิมก่อนแยกรายละเอียด)' }];
+    }
+    if (!incomeDetailDraft.parking.length && record.parking_amount) {
+        incomeDetailDraft.parking = [{ amount: record.parking_amount, detail: '(ยอดเดิมก่อนแยกรายละเอียด)' }];
+    }
+
+    document.getElementById('income-detail-date').value = incomeDetailDraft.date;
+    document.getElementById('income-detail-error').style.display = 'none';
+    renderIncomeDetailModal();
+    document.getElementById('modal-income-detail').style.display = 'flex';
+};
+
+window.closeIncomeDetailModal = function(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('modal-income-detail').style.display = 'none';
+    incomeDetailDraft = null;
+};
+
+function renderIncomeDetailModal() {
+    renderOtSection();
+    renderTravelSection();
+    renderTollSection();
+    renderParkingSection();
+    updateIncomeDetailTotal();
+}
+
+function updateIncomeDetailTotal() {
+    const d = incomeDetailDraft;
+    const otAmount = d.ot.reduce((s, e) => s + (Number(e.hours) || 0) * OT_RATE_DISPLAY, 0);
+    const travelAmount = d.travel.reduce((s, r) => s + (r.legs || []).reduce((s2, l) => s2 + (Number(l.km) || 0) * KM_RATE_DISPLAY, 0), 0);
+    const legToll = d.travel.reduce((s, r) => s + (r.legs || []).reduce((s2, l) => s2 + (Number(l.toll_amount) || 0), 0), 0);
+    const legParking = d.travel.reduce((s, r) => s + (r.legs || []).reduce((s2, l) => s2 + (Number(l.parking_amount) || 0), 0), 0);
+    const tollAmount = d.toll.reduce((s, t) => s + (Number(t.amount) || 0), 0) + legToll;
+    const parkingAmount = d.parking.reduce((s, t) => s + (Number(t.amount) || 0), 0) + legParking;
+    const total = otAmount + travelAmount + tollAmount + parkingAmount;
+    document.getElementById('income-detail-total').textContent = `${total.toLocaleString()} บาท`;
+}
+
+// ── OT ──
+function renderOtSection() {
+    const el = document.getElementById('income-detail-ot-list');
+    if (!incomeDetailDraft.ot.length) { el.innerHTML = '<div class="income-detail-empty">ไม่มีรายการ OT</div>'; return; }
+    el.innerHTML = incomeDetailDraft.ot.map((e, i) => `
+        <div class="income-detail-row">
+            <input type="number" class="income-input-narrow" placeholder="ชม." value="${e.hours ?? ''}" oninput="updateOtField(${i},'hours',this.value)">
+            <input type="text" placeholder="เหตุผล" value="${(e.reason || '').replace(/"/g, '&quot;')}" oninput="updateOtField(${i},'reason',this.value)">
+            <input type="text" class="income-input-narrow" placeholder="วันที่" value="${e.date || ''}" oninput="updateOtField(${i},'date',this.value)">
+            <button class="btn-remove-row" onclick="removeOtRow(${i})">✕</button>
+        </div>
+    `).join('');
+}
+window.addOtRow = function() {
+    incomeDetailDraft.ot.push({ hours: 1, reason: '', date: incomeDetailDraft.date });
+    renderOtSection(); updateIncomeDetailTotal();
+};
+window.removeOtRow = function(i) {
+    incomeDetailDraft.ot.splice(i, 1);
+    renderOtSection(); updateIncomeDetailTotal();
+};
+window.updateOtField = function(i, field, value) {
+    incomeDetailDraft.ot[i][field] = field === 'hours' ? value : value;
+    updateIncomeDetailTotal();
+};
+
+// ── เดินทาง (routes → legs) ──
+function renderTravelSection() {
+    const el = document.getElementById('income-detail-travel-list');
+    if (!incomeDetailDraft.travel.length) { el.innerHTML = '<div class="income-detail-empty">ไม่มีเส้นทาง</div>'; return; }
+    el.innerHTML = incomeDetailDraft.travel.map((route, ri) => `
+        <div class="income-route-card">
+            <div class="income-route-card-header">
+                <input type="text" placeholder="วันที่เส้นทาง" value="${route.date || ''}" oninput="updateRouteField(${ri},'date',this.value)">
+                <button class="btn-remove-row" onclick="removeRouteRow(${ri})">🗑 ลบเส้นทางนี้</button>
+            </div>
+            <div class="income-leg-list">
+                ${(route.legs || []).map((l, li) => `
+                    <div class="income-detail-row">
+                        <input type="text" placeholder="จาก" value="${(l.from || '').replace(/"/g, '&quot;')}" oninput="updateLegField(${ri},${li},'from',this.value)">
+                        <input type="text" placeholder="ถึง" value="${(l.to || '').replace(/"/g, '&quot;')}" oninput="updateLegField(${ri},${li},'to',this.value)">
+                        <input type="text" placeholder="งาน" value="${(l.job || '').replace(/"/g, '&quot;')}" oninput="updateLegField(${ri},${li},'job',this.value)">
+                        <input type="number" class="income-input-narrow" placeholder="กม." value="${l.km ?? ''}" oninput="updateLegField(${ri},${li},'km',this.value)">
+                        <input type="number" class="income-input-narrow" placeholder="ผ่านทาง" value="${l.toll_amount ?? ''}" oninput="updateLegField(${ri},${li},'toll_amount',this.value)">
+                        <input type="number" class="income-input-narrow" placeholder="จอดรถ" value="${l.parking_amount ?? ''}" oninput="updateLegField(${ri},${li},'parking_amount',this.value)">
+                        <button class="btn-remove-row" onclick="removeLegRow(${ri},${li})">✕</button>
+                    </div>
+                `).join('')}
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="addLegRow(${ri})">+ เพิ่มช่วงทาง</button>
+        </div>
+    `).join('');
+}
+window.addRouteRow = function() {
+    incomeDetailDraft.travel.push({ date: incomeDetailDraft.date, legs: [{ from: '', to: '', job: '', km: 0, toll_amount: 0, parking_amount: 0 }] });
+    renderTravelSection(); updateIncomeDetailTotal();
+};
+window.removeRouteRow = function(ri) {
+    incomeDetailDraft.travel.splice(ri, 1);
+    renderTravelSection(); updateIncomeDetailTotal();
+};
+window.addLegRow = function(ri) {
+    incomeDetailDraft.travel[ri].legs.push({ from: '', to: '', job: '', km: 0, toll_amount: 0, parking_amount: 0 });
+    renderTravelSection(); updateIncomeDetailTotal();
+};
+window.removeLegRow = function(ri, li) {
+    incomeDetailDraft.travel[ri].legs.splice(li, 1);
+    renderTravelSection(); updateIncomeDetailTotal();
+};
+window.updateRouteField = function(ri, field, value) {
+    incomeDetailDraft.travel[ri][field] = value;
+};
+window.updateLegField = function(ri, li, field, value) {
+    incomeDetailDraft.travel[ri].legs[li][field] = value;
+    updateIncomeDetailTotal();
+};
+
+// ── ผ่านทางพิเศษ / จอดรถ (โครงสร้างเดียวกัน: amount + detail) ──
+function renderSimpleSection(key, elId) {
+    const el = document.getElementById(elId);
+    const list = incomeDetailDraft[key];
+    if (!list.length) { el.innerHTML = '<div class="income-detail-empty">ไม่มีรายการ</div>'; return; }
+    el.innerHTML = list.map((t, i) => `
+        <div class="income-detail-row">
+            <input type="number" class="income-input-narrow" placeholder="บาท" value="${t.amount ?? ''}" oninput="updateSimpleField('${key}',${i},'amount',this.value)">
+            <input type="text" placeholder="รายละเอียด/เหตุผล" value="${(t.detail || '').replace(/"/g, '&quot;')}" oninput="updateSimpleField('${key}',${i},'detail',this.value)">
+            <button class="btn-remove-row" onclick="removeSimpleRow('${key}',${i})">✕</button>
+        </div>
+    `).join('');
+}
+function renderTollSection() { renderSimpleSection('toll', 'income-detail-toll-list'); }
+function renderParkingSection() { renderSimpleSection('parking', 'income-detail-parking-list'); }
+window.addTollRow = function() { incomeDetailDraft.toll.push({ amount: 0, detail: '' }); renderTollSection(); updateIncomeDetailTotal(); };
+window.addParkingRow = function() { incomeDetailDraft.parking.push({ amount: 0, detail: '' }); renderParkingSection(); updateIncomeDetailTotal(); };
+window.removeSimpleRow = function(key, i) {
+    incomeDetailDraft[key].splice(i, 1);
+    if (key === 'toll') renderTollSection(); else renderParkingSection();
+    updateIncomeDetailTotal();
+};
+window.updateSimpleField = function(key, i, field, value) {
+    incomeDetailDraft[key][i][field] = value;
+    updateIncomeDetailTotal();
+};
+
+window.saveIncomeDetailModal = async function() {
+    const errEl = document.getElementById('income-detail-error');
+    errEl.style.display = 'none';
+
+    const date = document.getElementById('income-detail-date').value;
+    if (!date) { errEl.textContent = '⚠️ กรุณาระบุวันที่'; errEl.style.display = 'block'; return; }
+
+    const res = await fetch(`/api/income/records/${incomeDetailDraft.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            requester_id: currentUser.id, role: currentUser.role,
+            date,
+            ot_details: incomeDetailDraft.ot,
+            travel_details: incomeDetailDraft.travel,
+            toll_details: incomeDetailDraft.toll,
+            parking_details: incomeDetailDraft.parking
+        })
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = '❌ ' + data.error; errEl.style.display = 'block'; return; }
+
+    closeIncomeDetailModal();
     const sel = document.getElementById('income-user-filter');
     loadIncomePage(currentUser.role === 'admin' && sel ? sel.value : undefined);
 };

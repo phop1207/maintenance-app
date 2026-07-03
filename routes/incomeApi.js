@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabaseClient');
-const { computeIncomeSummary, getBillingCycle } = require('../services/incomeService');
+const { computeIncomeSummary, getBillingCycle, computeTotals } = require('../services/incomeService');
 
 // GET รายได้ (ใบงาน + OT/เดินทาง/ผ่านทาง/จอดรถ) ของรอบบิลปัจจุบัน
 // role admin: ดูของ user_id ไหนก็ได้ (ไม่ระบุ = ของตัวเอง)
@@ -41,10 +41,11 @@ router.get('/api/income/records', async (req, res) => {
     res.json(data || []);
 });
 
-// PATCH แก้ไขยอดของรายการค่าตอบแทนเพิ่มเติม 1 แถว (ot_amount / travel_amount / toll_amount / parking_amount)
-// แก้ผ่านหน้าเว็บแล้วข้อมูลจะตรงกับ LINE ทันที เพราะอ่าน/เขียนตาราง extra_income เดียวกัน
+// PATCH แก้ไขรายละเอียดเต็มของรายการค่าตอบแทนเพิ่มเติม 1 แถว
+// รับ: date, ot_details[], travel_details[], toll_details[], parking_details[]
+// เซิร์ฟเวอร์คำนวณยอดเงินใหม่ทั้งหมดจากรายละเอียดที่ส่งมา (สูตรเดียวกับตอนบันทึกจาก LINE) เพื่อกันข้อมูลไม่ตรงกัน
 router.patch('/api/income/records/:id', async (req, res) => {
-    const { requester_id, role, ot_amount, travel_amount, toll_amount, parking_amount } = req.body;
+    const { requester_id, role, date, ot_details, travel_details, toll_details, parking_details } = req.body;
     if (!requester_id || !role) return res.status(400).json({ error: 'ข้อมูลไม่ครบ (requester_id, role)' });
 
     const { data: record, error: fetchErr } = await supabase
@@ -53,22 +54,29 @@ router.patch('/api/income/records/:id', async (req, res) => {
     if (role !== 'admin' && String(record.user_id) !== String(requester_id))
         return res.status(403).json({ error: 'ไม่มีสิทธิ์แก้ไขรายการของผู้อื่น' });
 
-    const newOt = ot_amount !== undefined ? Number(ot_amount) : record.ot_amount;
-    const newTravel = travel_amount !== undefined ? Number(travel_amount) : record.travel_amount;
-    const newToll = toll_amount !== undefined ? Number(toll_amount) : record.toll_amount;
-    const newParking = parking_amount !== undefined ? Number(parking_amount) : record.parking_amount;
-    if ([newOt, newTravel, newToll, newParking].some(v => isNaN(v) || v < 0))
-        return res.status(400).json({ error: 'จำนวนเงินไม่ถูกต้อง' });
-
-    const newTotal = newOt + newTravel + newToll + newParking;
+    let totals;
+    try {
+        totals = computeTotals({
+            otDetails: Array.isArray(ot_details) ? ot_details : (record.ot_details || []),
+            travelDetails: Array.isArray(travel_details) ? travel_details : (record.travel_details || []),
+            tollDetails: Array.isArray(toll_details) ? toll_details : (record.toll_details || []),
+            parkingDetails: Array.isArray(parking_details) ? parking_details : (record.parking_details || [])
+        });
+    } catch (e) {
+        return res.status(400).json({ error: 'รูปแบบรายละเอียดไม่ถูกต้อง' });
+    }
 
     const { error: updateErr } = await supabase.from('extra_income').update({
-        ot_amount: newOt, travel_amount: newTravel, toll_amount: newToll, parking_amount: newParking,
-        total_amount: newTotal
+        date: date || record.date,
+        ot_hours: totals.otHours, ot_amount: totals.otAmount, ot_details: totals.otEntries,
+        travel_km: totals.travelKm, travel_amount: totals.travelAmount, travel_details: totals.routes,
+        toll_amount: totals.tollAmount, toll_details: totals.tolls,
+        parking_amount: totals.parkingAmount, parking_details: totals.parkings,
+        total_amount: totals.totalAmount
     }).eq('id', req.params.id);
 
     if (updateErr) return res.status(500).json({ error: updateErr.message });
-    res.json({ message: 'แก้ไขรายการสำเร็จ' });
+    res.json({ message: 'แก้ไขรายการสำเร็จ', totals });
 });
 
 // DELETE ลบรายการค่าตอบแทนเพิ่มเติม 1 แถว

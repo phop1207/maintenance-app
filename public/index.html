@@ -468,6 +468,61 @@
         </div>
     </div>
 
+    <!-- Modal: Income Detail Editor -->
+    <div id="modal-income-detail" class="modal-overlay" style="display:none;" onclick="closeIncomeDetailModal(event)">
+        <div class="modal-card modal-card-wide" onclick="event.stopPropagation()">
+            <h3>🧾 รายละเอียดรายการ</h3>
+            <div class="form-group" style="margin-bottom:0;">
+                <label>วันที่</label>
+                <input type="date" id="income-detail-date">
+            </div>
+
+            <div class="income-detail-section">
+                <div class="income-detail-section-header">
+                    <span>⏱ OT</span>
+                    <button class="btn btn-edit btn-sm" onclick="addOtRow()">+ เพิ่ม OT</button>
+                </div>
+                <div id="income-detail-ot-list" class="income-detail-list"></div>
+            </div>
+
+            <div class="income-detail-section">
+                <div class="income-detail-section-header">
+                    <span>🚗 เดินทาง</span>
+                    <button class="btn btn-edit btn-sm" onclick="addRouteRow()">+ เพิ่มเส้นทาง</button>
+                </div>
+                <div id="income-detail-travel-list" class="income-detail-list"></div>
+            </div>
+
+            <div class="income-detail-section">
+                <div class="income-detail-section-header">
+                    <span>🛣 ผ่านทางพิเศษ</span>
+                    <button class="btn btn-edit btn-sm" onclick="addTollRow()">+ เพิ่ม</button>
+                </div>
+                <div id="income-detail-toll-list" class="income-detail-list"></div>
+            </div>
+
+            <div class="income-detail-section">
+                <div class="income-detail-section-header">
+                    <span>🅿️ จอดรถ</span>
+                    <button class="btn btn-edit btn-sm" onclick="addParkingRow()">+ เพิ่ม</button>
+                </div>
+                <div id="income-detail-parking-list" class="income-detail-list"></div>
+            </div>
+
+            <div class="income-row-total" style="margin-top:18px;">
+                <span class="irt-label">รวมทั้งหมด (ประมาณการ)</span>
+                <span class="irt-amount" id="income-detail-total">0 บาท</span>
+            </div>
+
+            <div id="income-detail-error" class="pin-alert pin-error" style="display:none; margin-top:12px;"></div>
+
+            <div style="display:flex; gap:10px; margin-top:16px;">
+                <button class="btn btn-success" style="flex:1;" onclick="saveIncomeDetailModal()">💾 บันทึกการแก้ไข</button>
+                <button class="btn btn-secondary" style="flex:1;" onclick="closeIncomeDetailModal()">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>

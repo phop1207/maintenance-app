@@ -1150,10 +1150,56 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
     box-shadow: 0 16px 40px rgba(0,0,0,0.3);
     animation: fadeIn 0.2s ease;
 }
+.modal-card.modal-card-wide {
+    max-width: 560px;
+    max-height: 88vh;
+    overflow-y: auto;
+}
 .modal-card h3 {
     font-size: 1.05rem; font-weight: 700;
     color: var(--primary-color); margin-bottom: 8px;
 }
+
+.btn-sm { font-size: 0.75rem !important; padding: 5px 10px !important; }
+
+.income-detail-section {
+    margin-top: 18px; padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+}
+.income-detail-section-header {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.9rem; font-weight: 700; color: var(--text-main);
+    margin-bottom: 10px;
+}
+.income-detail-list { display: flex; flex-direction: column; gap: 8px; }
+.income-detail-row {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    background: var(--panel-bg); border: 1px solid var(--border-color);
+    border-radius: 10px; padding: 8px 10px;
+}
+.income-detail-row input {
+    flex: 1 1 80px; min-width: 60px;
+    padding: 6px 8px; font-size: 0.8rem;
+    border: 1px solid var(--border-color); border-radius: 6px;
+    background: var(--card-bg); color: var(--text-main);
+}
+.income-detail-row input.income-input-narrow { flex: 0 1 70px; }
+.income-detail-row .btn-remove-row {
+    flex: 0 0 auto; background: none; border: none; color: #e74c3c;
+    font-size: 1rem; cursor: pointer; padding: 2px 6px;
+}
+.income-detail-empty { font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 8px; }
+
+.income-route-card {
+    border: 1px solid var(--border-color); border-radius: 12px;
+    padding: 10px; margin-bottom: 10px; background: var(--panel-bg);
+}
+.income-route-card-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+}
+.income-route-card-header input { max-width: 140px; }
+.income-leg-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 
 @media (max-width: 520px) {
     .admin-stats-row { grid-template-columns: repeat(2, 1fr); }

@@ -3,7 +3,7 @@
 // รอบบิล: วันที่ 26 ถึง 25 ของเดือนถัดไป
 // ─────────────────────────────────────────────
 const supabase = require('../config/supabaseClient');
-const { JOB_INCOME_RATE, JOB_INCOME_TYPES, BILLING_CYCLE_START_DAY } = require('../config/constants');
+const { JOB_INCOME_RATE, JOB_INCOME_TYPES, BILLING_CYCLE_START_DAY, OT_RATE_PER_HOUR, KM_RATE_PER_KM } = require('../config/constants');
 
 /** คืนวันที่ปัจจุบัน (เวลาไทย) แบบ YYYY-MM-DD */
 function getTodayTH() {
@@ -94,4 +94,93 @@ async function computeIncomeSummary({ userId, lineUserId, cycleStart, cycleEnd }
     };
 }
 
-module.exports = { getBillingCycle, computeIncomeSummary };
+/**
+ * คำนวณยอดเงินทั้งหมดใหม่จาก "รายละเอียดดิบ" (ot_details / travel_details / toll_details / parking_details)
+ * ใช้ทั้งตอนบันทึกจาก LINE และตอนแก้ไขรายละเอียดจากหน้าเว็บ เพื่อให้สูตรคำนวณตรงกันเสมอ
+ * - ot_details: [{ hours, reason, date }]  → amount คำนวณใหม่จาก hours x OT_RATE_PER_HOUR
+ * - travel_details: [{ date, legs: [{ from, to, job, km, toll_amount, parking_amount }] }] → amount คำนวณใหม่จาก km x KM_RATE_PER_KM
+ * - toll_details / parking_details: [{ amount, detail }] → ใช้ amount ตามที่กรอก (ไม่มีสูตรคำนวณ)
+ */
+function computeTotals({ otDetails = [], travelDetails = [], tollDetails = [], parkingDetails = [] }) {
+    const otEntries = otDetails.map(e => ({
+        ...e,
+        hours: Number(e.hours) || 0,
+        amount: Math.round((Number(e.hours) || 0) * OT_RATE_PER_HOUR * 100) / 100
+    }));
+    const otHours = otEntries.reduce((s, e) => s + e.hours, 0);
+    const otAmount = otEntries.reduce((s, e) => s + e.amount, 0);
+
+    const routes = travelDetails.map(route => {
+        const legs = (route.legs || []).map(l => ({
+            ...l,
+            km: Number(l.km) || 0,
+            amount: Math.round((Number(l.km) || 0) * KM_RATE_PER_KM * 100) / 100,
+            toll_amount: Number(l.toll_amount) || 0,
+            parking_amount: Number(l.parking_amount) || 0
+        }));
+        const total_km = Math.round(legs.reduce((s, l) => s + l.km, 0) * 100) / 100;
+        const amount = Math.round(legs.reduce((s, l) => s + l.amount, 0) * 100) / 100;
+        const toll_amount = Math.round(legs.reduce((s, l) => s + l.toll_amount, 0) * 100) / 100;
+        const parking_amount = Math.round(legs.reduce((s, l) => s + l.parking_amount, 0) * 100) / 100;
+        return { ...route, legs, total_km, amount, toll_amount, parking_amount };
+    });
+    const travelKm = routes.reduce((s, r) => s + r.total_km, 0);
+    const travelAmount = routes.reduce((s, r) => s + r.amount, 0);
+    const routeTollAmount = routes.reduce((s, r) => s + (r.toll_amount || 0), 0);
+    const routeParkingAmount = routes.reduce((s, r) => s + (r.parking_amount || 0), 0);
+
+    const tolls = tollDetails.map(t => ({ ...t, amount: Number(t.amount) || 0 }));
+    const parkings = parkingDetails.map(t => ({ ...t, amount: Number(t.amount) || 0 }));
+    const tollAmount = Math.round((tolls.reduce((s, t) => s + t.amount, 0) + routeTollAmount) * 100) / 100;
+    const parkingAmount = Math.round((parkings.reduce((s, t) => s + t.amount, 0) + routeParkingAmount) * 100) / 100;
+
+    const totalAmount = Math.round((otAmount + travelAmount + tollAmount + parkingAmount) * 100) / 100;
+
+    return {
+        otEntries, otHours, otAmount,
+        routes, travelKm, travelAmount,
+        tolls, parkings, tollAmount, parkingAmount,
+        totalAmount
+    };
+}
+
+/**
+ * บันทึกรายการค่าตอบแทนเพิ่มเติมที่สะสมไว้ใน session (OT/เดินทาง/ทางด่วน/จอดรถ) ลง Supabase เป็น 1 แถว
+ * คืนค่า { ok, totalAmount, error }
+ */
+async function saveIncomeSession(incState, lineUserId) {
+    const totals = computeTotals({
+        otDetails: incState.ot_entries || [],
+        travelDetails: incState.routes || [],
+        tollDetails: incState.tolls || [],
+        parkingDetails: incState.parkings || []
+    });
+
+    if (totals.totalAmount <= 0) return { ok: false, totalAmount: 0, error: 'ยังไม่มีรายการให้บันทึกครับ กรุณาเพิ่มรายการก่อน', empty: true };
+
+    const { data: userRow } = await supabase.from('users').select('id').eq('line_user_id', lineUserId).single();
+    const dbUserId = userRow ? userRow.id : null;
+    const dateStr = getTodayTH();
+
+    const { error: saveErr } = await supabase.from('extra_income').insert([{
+        user_id: dbUserId,
+        line_user_id: lineUserId,
+        date: dateStr,
+        ot_hours: totals.otHours,
+        ot_amount: totals.otAmount,
+        ot_details: totals.otEntries,
+        travel_km: totals.travelKm,
+        travel_amount: totals.travelAmount,
+        travel_details: totals.routes,
+        toll_amount: totals.tollAmount,
+        toll_details: totals.tolls,
+        parking_amount: totals.parkingAmount,
+        parking_details: totals.parkings,
+        total_amount: totals.totalAmount
+    }]);
+
+    if (saveErr) return { ok: false, totalAmount: totals.totalAmount, error: saveErr.message };
+    return { ok: true, totalAmount: totals.totalAmount };
+}
+
+module.exports = { getBillingCycle, computeIncomeSummary, saveIncomeSession, computeTotals };
