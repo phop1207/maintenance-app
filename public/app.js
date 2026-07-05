@@ -180,10 +180,33 @@ async function loadUserFilterOptions() {
 }
 
 // Check session on page load
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
     const session = getSession();
     if (session) {
         currentUser = session;
+
+        // รีเฟรชข้อมูล user (โดยเฉพาะ role) จากฐานข้อมูลเสมอเมื่อเปิดเว็บ
+        // เผื่อ admin เพิ่งเปลี่ยน role ให้ระหว่างที่ session เก่ายังค้างอยู่ในเบราว์เซอร์
+        // (ไม่งั้นเมนูที่ขึ้นกับ role เช่น "รายได้" จะไม่อัปเดตจนกว่าจะออกจากระบบแล้วเข้าใหม่)
+        try {
+            const res = await fetch(`/api/auth/me/${session.id}`);
+            if (res.status === 404) {
+                // user ถูกลบไปแล้ว → บังคับออกจากระบบ
+                logout();
+                return;
+            }
+            if (res.ok) {
+                const fresh = await res.json();
+                currentUser = { ...session, ...fresh };
+                sessionStorage.setItem('joblogger_user', JSON.stringify(currentUser));
+                if (localStorage.getItem('joblogger_remember')) {
+                    localStorage.setItem('joblogger_remember', JSON.stringify(currentUser));
+                }
+            }
+        } catch (e) {
+            // ออฟไลน์/เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ → ใช้ข้อมูลที่จำไว้ไปก่อน
+        }
+
         initAfterLogin();
     }
     // else: overlay stays visible, waiting for login
@@ -940,19 +963,20 @@ async function loadIncomePage(targetUserId) {
         cycleLabelEl.textContent = `รอบบิล ${summary.cycleStart} ถึง ${summary.cycleEnd}`;
 
         const rows = [
-            { label: '🔧 งานซ่อม/MA', detail: `${summary.jobCount} ใบ x 100 บ.`, amount: summary.jobAmount },
-            { label: '⏱ OT', detail: '', amount: summary.otAmount },
-            { label: '🚗 เดินทาง', detail: '', amount: summary.travelAmount },
-            { label: '🛣 ผ่านทางพิเศษ', detail: '', amount: summary.tollAmount },
-            { label: '🅿️ จอดรถ', detail: '', amount: summary.parkingAmount }
+            { icon: '🔧', color: '#16a085', label: 'งานซ่อม / MA', desc: `ค่าตอบแทนจากใบงานซ่อม (Repair) และบำรุงรักษา (Maintenance) ที่ปิดงานแล้ว 100 บาท/ใบ · ปิดไปแล้ว ${summary.jobCount} ใบ`, amount: summary.jobAmount },
+            { icon: '⏱', color: '#e67e22', label: 'OT', desc: `ค่าล่วงเวลานอกเหนือเวลางานปกติ ${OT_RATE_DISPLAY} บาท/ชั่วโมง`, amount: summary.otAmount },
+            { icon: '🚗', color: '#2980b9', label: 'ค่าเดินทาง', desc: `ค่าน้ำมัน/ระยะทางเดินทางไปหน้างาน ${KM_RATE_DISPLAY} บาท/กิโลเมตร`, amount: summary.travelAmount },
+            { icon: '🛣', color: '#8e44ad', label: 'ค่าทางด่วน', desc: 'ค่าผ่านทางพิเศษที่จ่ายเพิ่มระหว่างเดินทางไปหน้างาน', amount: summary.tollAmount },
+            { icon: '🅿️', color: '#c0392b', label: 'ค่าจอดรถ', desc: 'ค่าจอดรถที่จ่ายเพิ่มระหว่างเข้าปฏิบัติงาน', amount: summary.parkingAmount }
         ];
         breakdownEl.innerHTML = rows.map(r => `
             <div class="income-row">
-                <div>
+                <div class="ir-icon" style="background:${r.color}22; color:${r.color};">${r.icon}</div>
+                <div class="ir-main">
                     <div class="ir-label">${r.label}</div>
-                    ${r.detail ? `<div class="ir-detail">${r.detail}</div>` : ''}
+                    <div class="ir-detail">${r.desc}</div>
                 </div>
-                <div class="ir-amount">${(r.amount || 0).toLocaleString()} บ.</div>
+                <div class="ir-amount">${(r.amount || 0).toLocaleString()}<span class="ir-unit"> บ.</span></div>
             </div>
         `).join('');
 
@@ -1076,8 +1100,10 @@ window.openIncomeDetailModal = function(id) {
 
     document.getElementById('income-detail-date').value = incomeDetailDraft.date;
     document.getElementById('income-detail-error').style.display = 'none';
-    renderIncomeDetailModal();
+    // แสดง modal ก่อน แล้วค่อย render รายการทีหลังในเฟรมถัดไป
+    // (กัน popup ค้าง/กระตุกตอนเปิด เพราะเดิมสร้าง DOM หลายก้อนพร้อมกับตอนที่ popup กำลังเล่นอนิเมชันเปิด)
     document.getElementById('modal-income-detail').style.display = 'flex';
+    requestAnimationFrame(() => renderIncomeDetailModal());
 };
 
 window.closeIncomeDetailModal = function(e) {
@@ -1112,10 +1138,19 @@ function renderOtSection() {
     if (!incomeDetailDraft.ot.length) { el.innerHTML = '<div class="income-detail-empty">ไม่มีรายการ OT</div>'; return; }
     el.innerHTML = incomeDetailDraft.ot.map((e, i) => `
         <div class="income-detail-row">
-            <input type="number" class="income-input-narrow" placeholder="ชม." value="${e.hours ?? ''}" oninput="updateOtField(${i},'hours',this.value)">
-            <input type="text" placeholder="เหตุผล" value="${(e.reason || '').replace(/"/g, '&quot;')}" oninput="updateOtField(${i},'reason',this.value)">
-            <input type="text" class="income-input-narrow" placeholder="วันที่" value="${e.date || ''}" oninput="updateOtField(${i},'date',this.value)">
-            <button class="btn-remove-row" onclick="removeOtRow(${i})">✕</button>
+            <div class="field-mini field-mini-narrow">
+                <label>ชั่วโมง</label>
+                <input type="number" placeholder="เช่น 2" value="${e.hours ?? ''}" oninput="updateOtField(${i},'hours',this.value)">
+            </div>
+            <div class="field-mini">
+                <label>เหตุผล</label>
+                <input type="text" placeholder="เช่น เร่งงานติดตั้ง" value="${(e.reason || '').replace(/"/g, '&quot;')}" oninput="updateOtField(${i},'reason',this.value)">
+            </div>
+            <div class="field-mini field-mini-narrow">
+                <label>วันที่</label>
+                <input type="text" placeholder="วว-ดด" value="${e.date || ''}" oninput="updateOtField(${i},'date',this.value)">
+            </div>
+            <button class="btn-remove-row" onclick="removeOtRow(${i})" aria-label="ลบรายการ OT นี้">✕</button>
         </div>
     `).join('');
 }
@@ -1139,19 +1174,40 @@ function renderTravelSection() {
     el.innerHTML = incomeDetailDraft.travel.map((route, ri) => `
         <div class="income-route-card">
             <div class="income-route-card-header">
-                <input type="text" placeholder="วันที่เส้นทาง" value="${route.date || ''}" oninput="updateRouteField(${ri},'date',this.value)">
+                <div class="field-mini">
+                    <label>วันที่เดินทาง (เส้นทางนี้)</label>
+                    <input type="text" placeholder="วว-ดด" value="${route.date || ''}" oninput="updateRouteField(${ri},'date',this.value)">
+                </div>
                 <button class="btn-remove-row" onclick="removeRouteRow(${ri})">🗑 ลบเส้นทางนี้</button>
             </div>
             <div class="income-leg-list">
                 ${(route.legs || []).map((l, li) => `
                     <div class="income-detail-row">
-                        <input type="text" placeholder="จาก" value="${(l.from || '').replace(/"/g, '&quot;')}" oninput="updateLegField(${ri},${li},'from',this.value)">
-                        <input type="text" placeholder="ถึง" value="${(l.to || '').replace(/"/g, '&quot;')}" oninput="updateLegField(${ri},${li},'to',this.value)">
-                        <input type="text" placeholder="งาน" value="${(l.job || '').replace(/"/g, '&quot;')}" oninput="updateLegField(${ri},${li},'job',this.value)">
-                        <input type="number" class="income-input-narrow" placeholder="กม." value="${l.km ?? ''}" oninput="updateLegField(${ri},${li},'km',this.value)">
-                        <input type="number" class="income-input-narrow" placeholder="ผ่านทาง" value="${l.toll_amount ?? ''}" oninput="updateLegField(${ri},${li},'toll_amount',this.value)">
-                        <input type="number" class="income-input-narrow" placeholder="จอดรถ" value="${l.parking_amount ?? ''}" oninput="updateLegField(${ri},${li},'parking_amount',this.value)">
-                        <button class="btn-remove-row" onclick="removeLegRow(${ri},${li})">✕</button>
+                        <div class="field-mini">
+                            <label>จาก</label>
+                            <input type="text" placeholder="เช่น สำนักงาน" value="${(l.from || '').replace(/"/g, '&quot;')}" oninput="updateLegField(${ri},${li},'from',this.value)">
+                        </div>
+                        <div class="field-mini">
+                            <label>ถึง</label>
+                            <input type="text" placeholder="เช่น หน้างาน" value="${(l.to || '').replace(/"/g, '&quot;')}" oninput="updateLegField(${ri},${li},'to',this.value)">
+                        </div>
+                        <div class="field-mini">
+                            <label>งานที่ทำ</label>
+                            <input type="text" placeholder="เช่น Repair Mk" value="${(l.job || '').replace(/"/g, '&quot;')}" oninput="updateLegField(${ri},${li},'job',this.value)">
+                        </div>
+                        <div class="field-mini field-mini-narrow">
+                            <label>กม.</label>
+                            <input type="number" placeholder="0" value="${l.km ?? ''}" oninput="updateLegField(${ri},${li},'km',this.value)">
+                        </div>
+                        <div class="field-mini field-mini-narrow">
+                            <label>ผ่านทาง (บ.)</label>
+                            <input type="number" placeholder="0" value="${l.toll_amount ?? ''}" oninput="updateLegField(${ri},${li},'toll_amount',this.value)">
+                        </div>
+                        <div class="field-mini field-mini-narrow">
+                            <label>จอดรถ (บ.)</label>
+                            <input type="number" placeholder="0" value="${l.parking_amount ?? ''}" oninput="updateLegField(${ri},${li},'parking_amount',this.value)">
+                        </div>
+                        <button class="btn-remove-row" onclick="removeLegRow(${ri},${li})" aria-label="ลบช่วงทางนี้">✕</button>
                     </div>
                 `).join('')}
             </div>
@@ -1190,9 +1246,15 @@ function renderSimpleSection(key, elId) {
     if (!list.length) { el.innerHTML = '<div class="income-detail-empty">ไม่มีรายการ</div>'; return; }
     el.innerHTML = list.map((t, i) => `
         <div class="income-detail-row">
-            <input type="number" class="income-input-narrow" placeholder="บาท" value="${t.amount ?? ''}" oninput="updateSimpleField('${key}',${i},'amount',this.value)">
-            <input type="text" placeholder="รายละเอียด/เหตุผล" value="${(t.detail || '').replace(/"/g, '&quot;')}" oninput="updateSimpleField('${key}',${i},'detail',this.value)">
-            <button class="btn-remove-row" onclick="removeSimpleRow('${key}',${i})">✕</button>
+            <div class="field-mini field-mini-narrow">
+                <label>จำนวนเงิน (บ.)</label>
+                <input type="number" placeholder="0" value="${t.amount ?? ''}" oninput="updateSimpleField('${key}',${i},'amount',this.value)">
+            </div>
+            <div class="field-mini">
+                <label>รายละเอียด/เหตุผล</label>
+                <input type="text" placeholder="เช่น เดินทางไปไซต์งาน ABC" value="${(t.detail || '').replace(/"/g, '&quot;')}" oninput="updateSimpleField('${key}',${i},'detail',this.value)">
+            </div>
+            <button class="btn-remove-row" onclick="removeSimpleRow('${key}',${i})" aria-label="ลบรายการนี้">✕</button>
         </div>
     `).join('');
 }

@@ -343,7 +343,6 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
     position: fixed; inset: 0; z-index: 9000;
     background: rgba(10, 15, 30, 0.92);
     display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(6px);
     transition: opacity 0.3s ease;
 }
 .login-card {
@@ -592,13 +591,22 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 }
 .income-breakdown { display: flex; flex-direction: column; gap: 10px; }
 .income-row {
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex; align-items: center; gap: 12px;
     background: var(--panel-bg); border: 1px solid var(--border-color);
-    border-radius: 10px; padding: 12px 14px;
+    border-radius: 12px; padding: 12px 14px;
+    transition: box-shadow 0.15s ease;
 }
-.income-row .ir-label { font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
-.income-row .ir-detail { font-size: 0.75rem; color: var(--text-muted); }
-.income-row .ir-amount { font-size: 0.95rem; font-weight: 700; color: var(--accent-color); }
+.income-row:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+.income-row .ir-icon {
+    flex: 0 0 auto; width: 38px; height: 38px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.15rem;
+}
+.income-row .ir-main { flex: 1; min-width: 0; }
+.income-row .ir-label { font-size: 0.9rem; font-weight: 700; color: var(--text-main); }
+.income-row .ir-detail { font-size: 0.74rem; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.income-row .ir-amount { flex: 0 0 auto; font-size: 1rem; font-weight: 800; color: var(--accent-color); white-space: nowrap; }
+.income-row .ir-amount .ir-unit { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); }
 .income-row-total {
     display: flex; justify-content: space-between; align-items: center;
     background: linear-gradient(135deg, rgba(22,160,133,0.12) 0%, rgba(22,160,133,0.04) 100%);
@@ -614,9 +622,10 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 ═══════════════════════════════════════ */
 .modal-overlay {
     position: fixed; inset: 0; z-index: 8000;
-    background: rgba(10,15,30,0.7);
+    background: rgba(10,15,30,0.75);
     display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(4px);
+    /* blur เบาลง (จากเดิม 4px) เพื่อลดอาการหน่วง/กระตุกตอนเปิด popup โดยเฉพาะบนมือถือ */
+    backdrop-filter: blur(2px);
 }
 .modal-card {
     background: var(--card-bg);
@@ -649,21 +658,33 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 }
 .income-detail-list { display: flex; flex-direction: column; gap: 8px; }
 .income-detail-row {
-    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;
     background: var(--panel-bg); border: 1px solid var(--border-color);
-    border-radius: 10px; padding: 8px 10px;
+    border-radius: 10px; padding: 10px 10px 8px;
 }
-.income-detail-row input {
-    flex: 1 1 80px; min-width: 60px;
+/* กล่องกรอกข้อมูลแบบมีป้ายกำกับติดถาวร (ไม่หายไปหลังพิมพ์ ต่างจาก placeholder เฉยๆ) */
+.field-mini {
+    display: flex; flex-direction: column; gap: 3px;
+    flex: 1 1 90px; min-width: 70px;
+}
+.field-mini-narrow { flex: 0 1 74px; min-width: 60px; }
+.field-mini label {
+    font-size: 0.68rem; font-weight: 700; color: var(--text-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.field-mini input {
+    width: 100%; box-sizing: border-box;
     padding: 6px 8px; font-size: 0.8rem;
     border: 1px solid var(--border-color); border-radius: 6px;
     background: var(--card-bg); color: var(--text-main);
 }
-.income-detail-row input.income-input-narrow { flex: 0 1 70px; }
-.income-detail-row .btn-remove-row {
+.field-mini input:focus { outline: none; border-color: var(--accent-color); }
+.income-detail-row .btn-remove-row,
+.income-route-card-header .btn-remove-row {
     flex: 0 0 auto; background: none; border: none; color: #e74c3c;
     font-size: 1rem; cursor: pointer; padding: 2px 6px;
 }
+.income-route-card-header { align-items: flex-end; }
 .income-detail-empty { font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 8px; }
 
 .income-route-card {

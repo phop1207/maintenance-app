@@ -48,6 +48,19 @@ router.post('/api/auth/change-pin', async (req, res) => {
     res.json({ message: 'เปลี่ยน PIN สำเร็จแล้วครับ!' });
 });
 
+// GET ข้อมูล user ปัจจุบันใหม่จากฐานข้อมูล (ใช้ตอนเปิดเว็บเพื่อรีเฟรช role ล่าสุด
+// เผื่อ admin เพิ่งเปลี่ยน role ให้ ระหว่างที่ session เก่ายังค้างอยู่ในเบราว์เซอร์)
+router.get('/api/auth/me/:id', async (req, res) => {
+    const { data: user, error } = await supabase
+        .from('users')
+        .select('id, username, display_name, role')
+        .eq('id', req.params.id)
+        .single();
+
+    if (error || !user) return res.status(404).json({ error: 'ไม่พบผู้ใช้ กรุณาเข้าสู่ระบบใหม่' });
+    res.json(user);
+});
+
 // GET users list (for admin dropdown)
 // GET users list (for admin dropdown)
 router.get('/api/auth/users', async (req, res) => {
