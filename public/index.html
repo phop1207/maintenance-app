@@ -131,6 +131,14 @@
                         <h3>ติดตั้ง (Installation)</h3>
                         <p><span id="stat-type-install">0</span></p>
                     </div>
+                    <div class="stat-box type-demo" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('type', 'demo');">
+                        <h3>Demo (สาธิตงาน)</h3>
+                        <p><span id="stat-type-demo">0</span></p>
+                    </div>
+                    <div class="stat-box type-survey" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('type', 'survey');">
+                        <h3>Site Survey (สำรวจหน้างาน)</h3>
+                        <p><span id="stat-type-survey">0</span></p>
+                    </div>
                 </div>
             </div>
             
@@ -209,6 +217,8 @@
                                 <option value="Maintenance">MA = Maintenance (งานบำรุงรักษา)</option>
                                 <option value="Installation">ติดตั้ง = Installation (งานติดตั้งระบบ)</option>
                                 <option value="Repair">ซ่อม = Repair (งานซ่อมแซมแก้ไข)</option>
+                                <option value="Demo">Demo (สาธิตงาน)</option>
+                                <option value="Site Survey">Site Survey (สำรวจหน้างาน)</option>
                             </select>
                         </div>
                         
@@ -281,6 +291,8 @@
                                 <button class="tag-btn" id="tag-type-repair" onclick="setQuickFilter('type', 'repair')">Repair (งานซ่อม)</button>
                                 <button class="tag-btn" id="tag-type-ma" onclick="setQuickFilter('type', 'ma')">MA (บำรุงรักษา)</button>
                                 <button class="tag-btn" id="tag-type-install" onclick="setQuickFilter('type', 'install')">ติดตั้ง (Installation)</button>
+                                <button class="tag-btn" id="tag-type-demo" onclick="setQuickFilter('type', 'demo')">Demo</button>
+                                <button class="tag-btn" id="tag-type-survey" onclick="setQuickFilter('type', 'survey')">Site Survey</button>
                             </div>
                         </div>
 

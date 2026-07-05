@@ -897,6 +897,10 @@ router.post('/webhook', async (req, res) => {
                 } else if (text === 'ซ่อม' || textLower === 'repair') {
                     finalJobType = 'Repair';
                     isRepair = true;
+                } else if (textLower === 'demo' || text === 'สาธิต') {
+                    finalJobType = 'Demo';
+                } else if (textLower === 'site survey' || textLower === 'survey' || text === 'สำรวจหน้างาน') {
+                    finalJobType = 'Site Survey';
                 }
 
                 currentState.job_type = finalJobType;
