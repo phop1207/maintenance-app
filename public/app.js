@@ -920,6 +920,10 @@ window.switchPage = function(pageTarget) {
 // Income Page (รายได้)
 // ─────────────────────────────────────────────
 let incomeUsersLoaded = false;
+let incomeRecordsCache = [];
+let incomeDetailDraft = null; // { id, date, ot:[], travel:[{date, legs:[]}], toll:[], parking:[] }
+const OT_RATE_DISPLAY = 125;
+const KM_RATE_DISPLAY = 5;
 
 async function loadIncomeUserOptions() {
     const wrap = document.getElementById('income-user-select');
@@ -969,20 +973,21 @@ async function loadIncomePage(targetUserId) {
         cycleLabelEl.textContent = `รอบบิล ${summary.cycleStart} ถึง ${summary.cycleEnd}`;
 
         const rows = [
-            { icon: '🔧', color: '#16a085', label: 'งานซ่อม / MA', desc: `ค่าตอบแทนจากใบงานซ่อม (Repair) และบำรุงรักษา (Maintenance) ที่ปิดงานแล้ว 100 บาท/ใบ · ปิดไปแล้ว ${summary.jobCount} ใบ`, amount: summary.jobAmount },
-            { icon: '⏱', color: '#e67e22', label: 'OT', desc: `ค่าล่วงเวลานอกเหนือเวลางานปกติ ${OT_RATE_DISPLAY} บาท/ชั่วโมง`, amount: summary.otAmount },
-            { icon: '🚗', color: '#2980b9', label: 'ค่าเดินทาง', desc: `ค่าน้ำมัน/ระยะทางเดินทางไปหน้างาน ${KM_RATE_DISPLAY} บาท/กิโลเมตร`, amount: summary.travelAmount },
-            { icon: '🛣', color: '#8e44ad', label: 'ค่าทางด่วน', desc: 'ค่าผ่านทางพิเศษที่จ่ายเพิ่มระหว่างเดินทางไปหน้างาน', amount: summary.tollAmount },
-            { icon: '🅿️', color: '#c0392b', label: 'ค่าจอดรถ', desc: 'ค่าจอดรถที่จ่ายเพิ่มระหว่างเข้าปฏิบัติงาน', amount: summary.parkingAmount }
+            { icon: '🔧', color: '#16a085', label: 'งานซ่อม / MA', desc: `ค่าตอบแทนจากใบงานซ่อม (Repair) และบำรุงรักษา (Maintenance) ที่ปิดงานแล้ว 100 บาท/ใบ · ปิดไปแล้ว ${summary.jobCount} ใบ`, amount: summary.jobAmount, kind: null },
+            { icon: '⏱', color: '#e67e22', label: 'OT', desc: `ค่าล่วงเวลานอกเหนือเวลางานปกติ ${OT_RATE_DISPLAY} บาท/ชั่วโมง · แตะเพื่อดูรายละเอียดทุกรายการ`, amount: summary.otAmount, kind: 'ot' },
+            { icon: '🚗', color: '#2980b9', label: 'ค่าเดินทาง', desc: `ค่าน้ำมัน/ระยะทางเดินทางไปหน้างาน ${KM_RATE_DISPLAY} บาท/กิโลเมตร · แตะเพื่อดูรายละเอียดทุกรายการ`, amount: summary.travelAmount, kind: 'travel' },
+            { icon: '🛣', color: '#8e44ad', label: 'ค่าทางด่วน', desc: 'ค่าผ่านทางพิเศษที่จ่ายเพิ่มระหว่างเดินทางไปหน้างาน · แตะเพื่อดูรายละเอียดทุกรายการ', amount: summary.tollAmount, kind: 'toll' },
+            { icon: '🅿️', color: '#c0392b', label: 'ค่าจอดรถ', desc: 'ค่าจอดรถที่จ่ายเพิ่มระหว่างเข้าปฏิบัติงาน · แตะเพื่อดูรายละเอียดทุกรายการ', amount: summary.parkingAmount, kind: 'parking' }
         ];
         breakdownEl.innerHTML = rows.map(r => `
-            <div class="income-row">
+            <div class="income-row${r.kind ? ' income-row-clickable' : ''}"${r.kind ? ` onclick="openCategoryDetail('${r.kind}')" role="button" tabindex="0"` : ''}>
                 <div class="ir-icon" style="background:${r.color}22; color:${r.color};">${r.icon}</div>
                 <div class="ir-main">
                     <div class="ir-label">${r.label}</div>
                     <div class="ir-detail">${r.desc}</div>
                 </div>
                 <div class="ir-amount">${(r.amount || 0).toLocaleString()}<span class="ir-unit"> บ.</span></div>
+                ${r.kind ? '<div class="ir-chevron">›</div>' : ''}
             </div>
         `).join('');
 
@@ -1002,12 +1007,26 @@ function formatThaiDateShort(dateStr) {
     if (!y || !m || !d) return dateStr;
     return `${String(d).padStart(2, '0')} ${THAI_MONTHS_SHORT[m - 1]} ${y + 543}`;
 }
+/** แสดงวันที่+เวลาแบบสั้นสำหรับ "วันที่อัปโหลด" (created_at จาก Supabase, ISO string) — ต่างจากวันที่ของรายการ (r.date) */
+function formatThaiDateTimeShort(isoStr) {
+    if (!isoStr) return '-';
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return '-';
+    // แปลงเป็นเวลาไทย (UTC+7) เพื่อให้ตรงกับเวลาที่ผู้ใช้อัปโหลดจริงจาก LINE
+    const th = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+    const day = String(th.getUTCDate()).padStart(2, '0');
+    const month = THAI_MONTHS_SHORT[th.getUTCMonth()];
+    const year = th.getUTCFullYear() + 543;
+    const hh = String(th.getUTCHours()).padStart(2, '0');
+    const mm = String(th.getUTCMinutes()).padStart(2, '0');
+    return `${day} ${month} ${year} ${hh}:${mm} น.`;
+}
 
 async function loadIncomeRecords(targetUserId) {
     const bodyEl = document.getElementById('income-records-body');
     const emptyEl = document.getElementById('income-records-empty');
     const countEl = document.getElementById('income-records-count');
-    bodyEl.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">กำลังโหลด...</td></tr>';
+    bodyEl.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-muted);">กำลังโหลด...</td></tr>';
     emptyEl.style.display = 'none';
 
     const params = new URLSearchParams({ requester_id: currentUser.id, role: currentUser.role });
@@ -1034,7 +1053,7 @@ async function loadIncomeRecords(targetUserId) {
             return;
         }
 
-        // เรียงจากวันที่ล่าสุดไปเก่าสุด (เผื่อ API ไม่ได้เรียงมา), ถ้าวันที่ตรงกันเรียงตาม id ล่าสุดก่อน
+        // เรียงจากวันที่ของรายการล่าสุดไปเก่าสุด (วันที่ทำงานจริง ไม่ใช่วันที่อัปโหลด) เผื่อ API ไม่ได้เรียงมา, ถ้าวันที่ตรงกันเรียงตาม id ล่าสุดก่อน
         const sorted = [...records].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : b.id - a.id));
 
         bodyEl.innerHTML = sorted.map(r => {
@@ -1042,6 +1061,7 @@ async function loadIncomeRecords(targetUserId) {
             return `
                 <tr>
                     <td><b>${formatThaiDateShort(r.date)}</b></td>
+                    <td><span class="upload-date-cell">${formatThaiDateTimeShort(r.created_at)}</span></td>
                     <td>${amtCell(r.ot_amount)}</td>
                     <td>${amtCell(r.travel_amount)}</td>
                     <td>${amtCell(r.toll_amount)}</td>
@@ -1049,7 +1069,7 @@ async function loadIncomeRecords(targetUserId) {
                     <td><span style="background: var(--panel-bg); color: var(--accent-color); padding: 4px 10px; border-radius: 20px; font-weight: 700; display:inline-block;">${(r.total_amount || 0).toLocaleString()} บ.</span></td>
                     <td>
                         <div class="action-cell">
-                            <button class="btn btn-edit" onclick="openIncomeDetailModal(${r.id})">✏️ แก้ไข</button>
+                            <button class="btn btn-edit" onclick="editIncomeRecord(${r.id})">✏️ แก้ไข</button>
                             <button class="btn btn-delete" onclick="deleteIncomeRecord(${r.id})">🗑️ ลบ</button>
                         </div>
                     </td>
@@ -1077,14 +1097,103 @@ window.deleteIncomeRecord = async function(id) {
 };
 
 // ─────────────────────────────────────────────
-// Income Detail Editor Modal (ดู/แก้ไขรายละเอียดเต็ม: OT / เดินทาง / ผ่านทาง / จอดรถ)
+// Income Category Detail Viewer (แตะแถวสรุป OT / เดินทาง / ทางด่วน / จอดรถ เพื่อดูรายละเอียดทุกรายการในรอบบิลนี้)
 // ─────────────────────────────────────────────
-let incomeRecordsCache = [];
-let incomeDetailDraft = null; // { id, date, ot:[], travel:[{date, legs:[]}], toll:[], parking:[] }
-const OT_RATE_DISPLAY = 125;
-const KM_RATE_DISPLAY = 5;
+const CATEGORY_META = {
+    ot: { title: '⏱ รายละเอียด OT ทั้งหมด', sub: `รวมทุกรายการ OT ในรอบบิลนี้ (${OT_RATE_DISPLAY} บาท/ชั่วโมง)` },
+    travel: { title: '🚗 รายละเอียดค่าเดินทางทั้งหมด', sub: `รวมทุกช่วงทางที่เดินทางในรอบบิลนี้ (${KM_RATE_DISPLAY} บาท/กิโลเมตร)` },
+    toll: { title: '🛣 รายละเอียดค่าทางด่วนทั้งหมด', sub: 'รวมทั้งรายการที่จดเดี่ยว และค่าทางด่วนที่แนบกับช่วงทางเดินทาง' },
+    parking: { title: '🅿️ รายละเอียดค่าจอดรถทั้งหมด', sub: 'รวมทั้งรายการที่จดเดี่ยว และค่าจอดรถที่แนบกับช่วงทางเดินทาง' }
+};
 
-window.openIncomeDetailModal = function(id) {
+/** รวบรวมรายการทั้งหมดของหมวดที่เลือก จากทุกแถว extra_income ในรอบบิลนี้ (incomeRecordsCache) */
+function collectCategoryEntries(kind) {
+    const entries = [];
+    (incomeRecordsCache || []).forEach(r => {
+        if (kind === 'ot') {
+            (r.ot_details || []).forEach(e => {
+                entries.push({
+                    date: e.date || r.date,
+                    title: `${e.hours ?? 0} ชั่วโมง`,
+                    detail: e.reason || '-',
+                    amount: e.amount ?? ((Number(e.hours) || 0) * OT_RATE_DISPLAY)
+                });
+            });
+        } else if (kind === 'travel') {
+            (r.travel_details || []).forEach(route => {
+                (route.legs || []).forEach(l => {
+                    entries.push({
+                        date: route.date || r.date,
+                        title: `${l.from || '?'} → ${l.to || '?'}`,
+                        detail: `${l.job ? l.job + ' · ' : ''}${l.km ?? 0} กม.`,
+                        amount: l.amount ?? ((Number(l.km) || 0) * KM_RATE_DISPLAY)
+                    });
+                });
+            });
+        } else if (kind === 'toll') {
+            (r.toll_details || []).forEach(t => {
+                entries.push({ date: t.date || r.date, title: 'ค่าทางด่วน (จดเดี่ยว)', detail: t.detail || '-', amount: t.amount || 0 });
+            });
+            (r.travel_details || []).forEach(route => {
+                (route.legs || []).forEach(l => {
+                    if (l.toll_amount) {
+                        entries.push({ date: route.date || r.date, title: `ค่าทางด่วน (${l.from || '?'} → ${l.to || '?'})`, detail: l.job || '-', amount: l.toll_amount });
+                    }
+                });
+            });
+        } else if (kind === 'parking') {
+            (r.parking_details || []).forEach(t => {
+                entries.push({ date: t.date || r.date, title: 'ค่าจอดรถ (จดเดี่ยว)', detail: t.detail || '-', amount: t.amount || 0 });
+            });
+            (r.travel_details || []).forEach(route => {
+                (route.legs || []).forEach(l => {
+                    if (l.parking_amount) {
+                        entries.push({ date: route.date || r.date, title: `ค่าจอดรถ (${l.from || '?'} → ${l.to || '?'})`, detail: l.job || '-', amount: l.parking_amount });
+                    }
+                });
+            });
+        }
+    });
+    entries.sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
+    return entries;
+}
+
+window.openCategoryDetail = function(kind) {
+    const meta = CATEGORY_META[kind];
+    if (!meta) return;
+    const entries = collectCategoryEntries(kind);
+    const total = entries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+    document.getElementById('category-detail-title').textContent = meta.title;
+    document.getElementById('category-detail-sub').textContent = meta.sub;
+    document.getElementById('category-detail-total').textContent = `${total.toLocaleString()} บาท`;
+
+    const listEl = document.getElementById('category-detail-list');
+    listEl.innerHTML = entries.length ? entries.map(e => `
+        <div class="income-detail-row category-detail-readrow">
+            <div class="cdr-date">${formatThaiDateShort(e.date)}</div>
+            <div class="cdr-main">
+                <div class="cdr-title">${e.title}</div>
+                <div class="cdr-detail">${e.detail}</div>
+            </div>
+            <div class="cdr-amount">${(Number(e.amount) || 0).toLocaleString()} บ.</div>
+        </div>
+    `).join('') : '<div class="income-detail-empty">ยังไม่มีรายการในหมวดนี้สำหรับรอบบิลนี้</div>';
+
+    document.getElementById('modal-category-detail').style.display = 'flex';
+};
+
+window.closeCategoryDetail = function(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('modal-category-detail').style.display = 'none';
+};
+
+// ─────────────────────────────────────────────
+// Income Edit Page (แก้ไขรายละเอียดเต็มของ 1 รายการ: OT / เดินทาง / ผ่านทาง / จอดรถ)
+// เข้าถึงผ่านปุ่ม "✏️ แก้ไข" ในตารางรายการ — สลับไปหน้าแก้ไขเต็มหน้า (page-income-edit)
+// เหมือนกับรูปแบบการแก้ไขงานในหน้า "ประวัติงาน" (editJob → switchPage('form'))
+// ─────────────────────────────────────────────
+window.editIncomeRecord = function(id) {
     const record = incomeRecordsCache.find(r => r.id === id);
     if (!record) return;
 
@@ -1106,16 +1215,30 @@ window.openIncomeDetailModal = function(id) {
 
     document.getElementById('income-detail-date').value = incomeDetailDraft.date;
     document.getElementById('income-detail-error').style.display = 'none';
-    // แสดง modal ก่อน แล้วค่อย render รายการทีหลังในเฟรมถัดไป
-    // (กัน popup ค้าง/กระตุกตอนเปิด เพราะเดิมสร้าง DOM หลายก้อนพร้อมกับตอนที่ popup กำลังเล่นอนิเมชันเปิด)
-    document.getElementById('modal-income-detail').style.display = 'flex';
+
+    const metaEl = document.getElementById('income-edit-meta');
+    if (metaEl) {
+        metaEl.innerHTML = `
+            <div class="income-edit-meta-row">
+                <span>📤 อัปโหลดเข้าระบบเมื่อ:</span>
+                <b>${formatThaiDateTimeShort(record.created_at)}</b>
+            </div>
+            <div class="income-edit-meta-row">
+                <span>🔖 รหัสรายการ:</span>
+                <b>#${record.id}</b>
+            </div>
+        `;
+    }
+
+    switchPage('income-edit');
+    // render รายการหลังสลับหน้าเสร็จในเฟรมถัดไป กัน DOM ยังไม่พร้อม/กระตุก
     requestAnimationFrame(() => renderIncomeDetailModal());
 };
 
 window.closeIncomeDetailModal = function(e) {
     if (e && e.target !== e.currentTarget) return;
-    document.getElementById('modal-income-detail').style.display = 'none';
     incomeDetailDraft = null;
+    switchPage('income');
 };
 
 function renderIncomeDetailModal() {
@@ -1300,9 +1423,8 @@ window.saveIncomeDetailModal = async function() {
     const data = await res.json();
     if (!res.ok) { errEl.textContent = '❌ ' + data.error; errEl.style.display = 'block'; return; }
 
+    showToast('บันทึกการแก้ไขสำเร็จ', 'success');
     closeIncomeDetailModal();
-    const sel = document.getElementById('income-user-filter');
-    loadIncomePage(currentUser.role === 'admin' && sel ? sel.value : undefined);
 };
 
 // Override switchPage to trigger income load
