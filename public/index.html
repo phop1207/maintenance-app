@@ -24,7 +24,7 @@
                 <input type="text" id="login-username" placeholder="กรอก Username ของคุณ" autocomplete="username">
             </div>
             <div class="form-group">
-                <label for="login-pin">🔒 PIN (4 หลัก)</label>
+                <label for="login-pin">🔒 PIN (4-6 หลัก)</label>
                 <input type="password" id="login-pin" placeholder="กรอก PIN" maxlength="6" inputmode="numeric" autocomplete="current-password">
             </div>
             <div class="remember-me-row">
@@ -48,10 +48,13 @@
                 </div>
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
-                <div id="user-badge" class="user-badge" style="display:none;">
+                <div id="user-badge" class="user-badge" style="display:none; cursor:pointer;" onclick="switchPage('profile')" title="โปรไฟล์ & ตั้งค่า">
                     <span id="user-badge-name"></span>
                     <span id="user-badge-role"></span>
                 </div>
+                <button id="btn-profile" class="btn-theme" style="display:none;" aria-label="โปรไฟล์" title="โปรไฟล์ & เปลี่ยน PIN" onclick="switchPage('profile')">
+                    <span>👤</span>
+                </button>
                 <button id="btn-logout" class="btn-logout" style="display:none;" onclick="logout()">ออกจากระบบ</button>
                 <button id="theme-toggle" class="btn-theme" aria-label="Toggle Theme">
                     <span id="theme-icon">🌙</span>
@@ -127,6 +130,14 @@
                     <div class="stat-box type-install" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('type', 'install');">
                         <h3>ติดตั้ง (Installation)</h3>
                         <p><span id="stat-type-install">0</span></p>
+                    </div>
+                    <div class="stat-box type-demo" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('type', 'demo');">
+                        <h3>Demo (สาธิตงาน)</h3>
+                        <p><span id="stat-type-demo">0</span></p>
+                    </div>
+                    <div class="stat-box type-survey" style="cursor: pointer;" onclick="switchPage('table'); setQuickFilter('type', 'survey');">
+                        <h3>Site Survey (สำรวจหน้างาน)</h3>
+                        <p><span id="stat-type-survey">0</span></p>
                     </div>
                 </div>
             </div>
@@ -206,6 +217,8 @@
                                 <option value="Maintenance">MA = Maintenance (งานบำรุงรักษา)</option>
                                 <option value="Installation">ติดตั้ง = Installation (งานติดตั้งระบบ)</option>
                                 <option value="Repair">ซ่อม = Repair (งานซ่อมแซมแก้ไข)</option>
+                                <option value="Demo">Demo (สาธิตงาน)</option>
+                                <option value="Site Survey">Site Survey (สำรวจหน้างาน)</option>
                             </select>
                         </div>
                         
@@ -246,8 +259,8 @@
                             <option value="all">👥 ทุกคน</option>
                         </select>
                         <button type="button" id="btn-export-excel" class="btn btn-excel" onclick="exportToExcel()">📊 ส่งออก Excel</button>
-                        <button type="button" class="btn btn-danger-zone" onclick="dangerDelete('month')">📅 ลบข้อมูลทั้งเดือนนี้</button>
-                        <button type="button" class="btn btn-danger-zone" onclick="dangerDelete('all')">⚠️ ลบข้อมูลทั้งหมด</button>
+                        <button type="button" id="btn-danger-month" class="btn btn-danger-zone" style="display:none;" onclick="dangerDelete('month')">📅 ลบข้อมูลทั้งเดือนนี้</button>
+                        <button type="button" id="btn-danger-all" class="btn btn-danger-zone" style="display:none;" onclick="dangerDelete('all')">⚠️ ลบข้อมูลทั้งหมด</button>
                     </div>
                 </div>
 
@@ -265,34 +278,43 @@
                         </div>
                     </div>
                     
-                    <div class="quick-filters-wrapper" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color);">
-                        <span class="filter-title">⚙️ แยกดูตามงาน:</span>
-                        <div class="filter-tags-group">
-                            <button class="tag-btn active" id="tag-type-all" onclick="setQuickFilter('type', 'all')">ทั้งหมด</button>
-                            <button class="tag-btn" id="tag-type-repair" onclick="setQuickFilter('type', 'repair')">Repair (งานซ่อม)</button>
-                            <button class="tag-btn" id="tag-type-ma" onclick="setQuickFilter('type', 'ma')">MA (บำรุงรักษา)</button>
-                            <button class="tag-btn" id="tag-type-install" onclick="setQuickFilter('type', 'install')">ติดตั้ง (Installation)</button>
+                    <div class="search-panel-header" style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-color);" onclick="toggleSearchPanel()">
+                        <span class="filter-title" style="min-width:auto;">⚙️ ตัวกรองเพิ่มเติม (ประเภทงาน / คำค้นหา / ช่วงวันที่)</span>
+                        <button type="button" id="btn-toggle-search-panel" class="search-panel-toggle">ซ่อน ▲</button>
+                    </div>
+
+                    <div id="search-panel-body" class="search-panel-body">
+                        <div class="quick-filters-wrapper">
+                            <span class="filter-title">⚙️ แยกดูตามงาน:</span>
+                            <div class="filter-tags-group">
+                                <button class="tag-btn active" id="tag-type-all" onclick="setQuickFilter('type', 'all')">ทั้งหมด</button>
+                                <button class="tag-btn" id="tag-type-repair" onclick="setQuickFilter('type', 'repair')">Repair (งานซ่อม)</button>
+                                <button class="tag-btn" id="tag-type-ma" onclick="setQuickFilter('type', 'ma')">MA (บำรุงรักษา)</button>
+                                <button class="tag-btn" id="tag-type-install" onclick="setQuickFilter('type', 'install')">ติดตั้ง (Installation)</button>
+                                <button class="tag-btn" id="tag-type-demo" onclick="setQuickFilter('type', 'demo')">Demo</button>
+                                <button class="tag-btn" id="tag-type-survey" onclick="setQuickFilter('type', 'survey')">Site Survey</button>
+                            </div>
+                        </div>
+
+                        <div class="search-grid" style="margin-top: 15px;">
+                            <div class="search-field query-field">
+                                <label for="search-input">🔍 เจาะจงค้นหาเพิ่ม</label>
+                                <input type="text" id="search-input" placeholder="พิมพ์คีย์เวิร์ดขยายการค้นหา...">
+                            </div>
+                            <div class="search-field">
+                                <label for="start-date">📅 ตั้งแต่</label>
+                                <input type="date" id="start-date">
+                            </div>
+                            <div class="search-field">
+                                <label for="end-date">📅 ถึงวันที่</label>
+                                <input type="date" id="end-date">
+                            </div>
+                            <div class="search-action">
+                                <button type="button" id="btn-clear-filter" class="btn btn-clear">ล้างค่ายกเว้น</button>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="search-grid" style="margin-top: 15px;">
-                        <div class="search-field query-field">
-                            <label for="search-input">🔍 เจาะจงค้นหาเพิ่ม</label>
-                            <input type="text" id="search-input" placeholder="พิมพ์คีย์เวิร์ดขยายการค้นหา...">
-                        </div>
-                        <div class="search-field">
-                            <label for="start-date">📅 ตั้งแต่</label>
-                            <input type="date" id="start-date">
-                        </div>
-                        <div class="search-field">
-                            <label for="end-date">📅 ถึงวันที่</label>
-                            <input type="date" id="end-date">
-                        </div>
-                        <div class="search-action">
-                            <button type="button" id="btn-clear-filter" class="btn btn-clear">ล้างค่ายกเว้น</button>
-                        </div>
-                    </div>
-                    
                     <div class="search-results-counter">
                         กำลังแสดงผลข้อมูลที่กรองเลือก: <span id="filtered-count" style="font-weight: 700; color: var(--primary-color);">0</span> รายการ
                     </div>
@@ -380,7 +402,8 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>วันที่</th>
+                                <th>วันที่ (ของรายการ)</th>
+                                <th>📤 อัปโหลดเมื่อ</th>
                                 <th>⏱ OT</th>
                                 <th>🚗 เดินทาง</th>
                                 <th>🛣 ผ่านทาง</th>
@@ -393,6 +416,78 @@
                     </table>
                 </div>
                 <div id="income-records-empty" style="display:none; text-align:center; color:var(--text-muted); padding:24px;">ยังไม่มีรายการที่บันทึกไว้ในรอบบิลนี้</div>
+            </div>
+        </div>
+
+        <!-- ════ Income Edit Page (แก้ไขรายละเอียดรายการรายได้) ════ -->
+        <div id="page-income-edit" class="app-page">
+            <div class="card form-card">
+                <div class="card-header">
+                    <span class="indicator color-green"></span>
+                    <h2 id="income-edit-title">🧾 แก้ไขรายละเอียดรายการ</h2>
+                </div>
+
+                <div class="line-style-tip">
+                    <span>💡 <b>คำแนะนำ:</b> แก้ไข OT / เส้นทางเดินทาง / ค่าทางด่วน / ค่าจอดรถ ของรายการนี้ได้ที่นี่ ระบบจะคำนวณยอดรวมใหม่ให้อัตโนมัติเมื่อบันทึก</span>
+                </div>
+
+                <div id="income-edit-meta" class="income-edit-meta"></div>
+
+                <div class="form-step-group">
+                    <div class="step-badge">วันที่ของรายการ</div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="income-detail-date">📅 วันที่ทำงาน/เกิดค่าใช้จ่ายจริง</label>
+                        <input type="date" id="income-detail-date">
+                    </div>
+                </div>
+
+                <div class="form-step-group">
+                    <div class="step-badge">⏱ OT</div>
+                    <div class="income-detail-section-header" style="margin-top:4px;">
+                        <span>รายการ OT</span>
+                        <button type="button" class="btn btn-edit btn-sm" onclick="addOtRow()">+ เพิ่ม OT</button>
+                    </div>
+                    <div id="income-detail-ot-list" class="income-detail-list"></div>
+                </div>
+
+                <div class="form-step-group">
+                    <div class="step-badge">🚗 เดินทาง</div>
+                    <div class="income-detail-section-header" style="margin-top:4px;">
+                        <span>เส้นทางที่เดินทาง</span>
+                        <button type="button" class="btn btn-edit btn-sm" onclick="addRouteRow()">+ เพิ่มเส้นทาง</button>
+                    </div>
+                    <div id="income-detail-travel-list" class="income-detail-list"></div>
+                </div>
+
+                <div class="form-step-group">
+                    <div class="step-badge">🛣 ผ่านทางพิเศษ</div>
+                    <div class="income-detail-section-header" style="margin-top:4px;">
+                        <span>รายการค่าผ่านทาง (แยกจากเส้นทาง)</span>
+                        <button type="button" class="btn btn-edit btn-sm" onclick="addTollRow()">+ เพิ่ม</button>
+                    </div>
+                    <div id="income-detail-toll-list" class="income-detail-list"></div>
+                </div>
+
+                <div class="form-step-group">
+                    <div class="step-badge">🅿️ จอดรถ</div>
+                    <div class="income-detail-section-header" style="margin-top:4px;">
+                        <span>รายการค่าจอดรถ (แยกจากเส้นทาง)</span>
+                        <button type="button" class="btn btn-edit btn-sm" onclick="addParkingRow()">+ เพิ่ม</button>
+                    </div>
+                    <div id="income-detail-parking-list" class="income-detail-list"></div>
+                </div>
+
+                <div class="income-row-total" style="margin-top:4px;">
+                    <span class="irt-label">รวมทั้งหมด (ประมาณการ)</span>
+                    <span class="irt-amount" id="income-detail-total">0 บาท</span>
+                </div>
+
+                <div id="income-detail-error" class="pin-alert pin-error" style="display:none; margin-top:12px;"></div>
+
+                <div class="form-actions">
+                    <button type="button" id="btn-income-edit-save" class="btn btn-success" onclick="saveIncomeDetailModal()">💾 บันทึกการแก้ไข</button>
+                    <button type="button" id="btn-income-edit-cancel" class="btn btn-secondary" onclick="closeIncomeDetailModal()">✕ ยกเลิก / กลับหน้ารายได้</button>
+                </div>
             </div>
         </div>
 
@@ -461,10 +556,6 @@
             <span class="nav-icon">📋</span>
             <span class="nav-label">ประวัติงาน</span>
         </button>
-        <button id="nav-profile" class="nav-item" onclick="switchPage('profile')">
-            <span class="nav-icon">👤</span>
-            <span class="nav-label">โปรไฟล์</span>
-        </button>
         <button id="nav-income" class="nav-item" style="display:none;" onclick="switchPage('income')">
             <span class="nav-icon">💰</span>
             <span class="nav-label">รายได้</span>
@@ -492,57 +583,36 @@
         </div>
     </div>
 
-    <!-- Modal: Income Detail Editor -->
-    <div id="modal-income-detail" class="modal-overlay" style="display:none;" onclick="closeIncomeDetailModal(event)">
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Modal: Generic Confirm -->
+    <div id="modal-confirm" class="modal-overlay" style="display:none;">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <h3 id="modal-confirm-title">⚠️ ยืนยันการทำรายการ</h3>
+            <p id="modal-confirm-message" style="color:var(--text-main); font-size:0.9rem; line-height:1.6; margin:12px 0 4px;"></p>
+            <div style="display:flex; gap:10px; margin-top:18px;">
+                <button id="modal-confirm-ok" class="btn btn-danger-zone" style="flex:1;">ยืนยัน</button>
+                <button id="modal-confirm-cancel" class="btn btn-secondary" style="flex:1;">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Category Detail Viewer (ดูรายละเอียดทั้งหมดของหมวด OT / เดินทาง / ทางด่วน / จอดรถ ในรอบบิลนี้) -->
+    <div id="modal-category-detail" class="modal-overlay" style="display:none;" onclick="closeCategoryDetail(event)">
         <div class="modal-card modal-card-wide" onclick="event.stopPropagation()">
-            <h3>🧾 รายละเอียดรายการ</h3>
-            <div class="form-group" style="margin-bottom:0;">
-                <label>วันที่</label>
-                <input type="date" id="income-detail-date">
-            </div>
+            <h3 id="category-detail-title">🧾 รายละเอียด</h3>
+            <p id="category-detail-sub" style="font-size:0.8rem; color:var(--text-muted); margin:-4px 0 12px;"></p>
 
-            <div class="income-detail-section">
-                <div class="income-detail-section-header">
-                    <span>⏱ OT</span>
-                    <button class="btn btn-edit btn-sm" onclick="addOtRow()">+ เพิ่ม OT</button>
-                </div>
-                <div id="income-detail-ot-list" class="income-detail-list"></div>
-            </div>
+            <div id="category-detail-list" class="income-detail-list"></div>
 
-            <div class="income-detail-section">
-                <div class="income-detail-section-header">
-                    <span>🚗 เดินทาง</span>
-                    <button class="btn btn-edit btn-sm" onclick="addRouteRow()">+ เพิ่มเส้นทาง</button>
-                </div>
-                <div id="income-detail-travel-list" class="income-detail-list"></div>
+            <div class="income-row-total" style="margin-top:16px;">
+                <span class="irt-label">รวมหมวดนี้ทั้งรอบบิล</span>
+                <span class="irt-amount" id="category-detail-total">0 บาท</span>
             </div>
-
-            <div class="income-detail-section">
-                <div class="income-detail-section-header">
-                    <span>🛣 ผ่านทางพิเศษ</span>
-                    <button class="btn btn-edit btn-sm" onclick="addTollRow()">+ เพิ่ม</button>
-                </div>
-                <div id="income-detail-toll-list" class="income-detail-list"></div>
-            </div>
-
-            <div class="income-detail-section">
-                <div class="income-detail-section-header">
-                    <span>🅿️ จอดรถ</span>
-                    <button class="btn btn-edit btn-sm" onclick="addParkingRow()">+ เพิ่ม</button>
-                </div>
-                <div id="income-detail-parking-list" class="income-detail-list"></div>
-            </div>
-
-            <div class="income-row-total" style="margin-top:18px;">
-                <span class="irt-label">รวมทั้งหมด (ประมาณการ)</span>
-                <span class="irt-amount" id="income-detail-total">0 บาท</span>
-            </div>
-
-            <div id="income-detail-error" class="pin-alert pin-error" style="display:none; margin-top:12px;"></div>
 
             <div style="display:flex; gap:10px; margin-top:16px;">
-                <button class="btn btn-success" style="flex:1;" onclick="saveIncomeDetailModal()">💾 บันทึกการแก้ไข</button>
-                <button class="btn btn-secondary" style="flex:1;" onclick="closeIncomeDetailModal()">ยกเลิก</button>
+                <button class="btn btn-secondary" style="flex:1;" onclick="closeCategoryDetail()">ปิด</button>
             </div>
         </div>
     </div>

@@ -1,4 +1,51 @@
 // ─────────────────────────────────────────────
+// UI Feedback: Toast + Confirm Modal
+// (แทนที่ alert()/confirm()/prompt() ของเบราว์เซอร์ ให้หน้าตาตรงกับธีมแอป)
+// ─────────────────────────────────────────────
+function showToast(message, type = 'info', duration = 3200) {
+    const container = document.getElementById('toast-container');
+    if (!container) { console.log(message); return; }
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+    el.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+    container.appendChild(el);
+    setTimeout(() => {
+        el.classList.add('toast-hide');
+        setTimeout(() => el.remove(), 200);
+    }, duration);
+}
+window.showToast = showToast;
+
+function confirmModal(message, title = '⚠️ ยืนยันการทำรายการ') {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('modal-confirm');
+        document.getElementById('modal-confirm-title').textContent = title;
+        document.getElementById('modal-confirm-message').textContent = message;
+        overlay.style.display = 'flex';
+
+        const okBtn = document.getElementById('modal-confirm-ok');
+        const cancelBtn = document.getElementById('modal-confirm-cancel');
+
+        function cleanup(result) {
+            overlay.style.display = 'none';
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            overlay.removeEventListener('click', onOverlay);
+            resolve(result);
+        }
+        function onOk() { cleanup(true); }
+        function onCancel() { cleanup(false); }
+        function onOverlay(e) { if (e.target === overlay) cleanup(false); }
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('click', onOverlay);
+    });
+}
+window.confirmModal = confirmModal;
+
+// ─────────────────────────────────────────────
 // Session Management
 // ─────────────────────────────────────────────
 let currentUser = null; // { id, username, display_name, role }
@@ -98,12 +145,15 @@ function initAfterLogin() {
     badgeRole.textContent = roleLabel(currentUser.role);
     badge.style.display = 'flex';
     document.getElementById('btn-logout').style.display = 'inline-flex';
+    document.getElementById('btn-profile').style.display = 'flex';
 
     // Admin → แสดงคอลัมน์ช่าง + dropdown filter user + หน้า Admin
     if (currentUser.role === 'admin') {
         document.getElementById('col-technician').style.display = '';
         document.getElementById('filter-user').style.display = '';
         document.getElementById('nav-admin').style.display = '';
+        document.getElementById('btn-danger-month').style.display = '';
+        document.getElementById('btn-danger-all').style.display = '';
         loadUserFilterOptions();
     }
 
@@ -242,8 +292,16 @@ window.switchPage = function(pageTarget) {
     document.getElementById(`page-${pageTarget}`).classList.add('active');
 
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-    document.getElementById(`nav-${pageTarget}`).classList.add('active');
-    
+    // บางหน้า (เช่น "โปรไฟล์") ย้ายไปเข้าถึงผ่านไอคอนบน header แทน bottom nav แล้ว จึงอาจไม่มีปุ่ม nav-* คู่กัน
+    const navBtn = document.getElementById(`nav-${pageTarget}`);
+    if (navBtn) navBtn.classList.add('active');
+
+    document.querySelectorAll('.btn-theme').forEach(b => b.classList.remove('active-page-icon'));
+    if (pageTarget === 'profile') {
+        const profileBtn = document.getElementById('btn-profile');
+        if (profileBtn) profileBtn.classList.add('active-page-icon');
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -269,7 +327,7 @@ async function fetchJobs() {
 
 function updateDashboardStats(jobs) {
     let mkCount = 0; let fujiCount = 0; let luckyCount = 0; let smeCount = 0; let bbqCount = 0; let bonusCount = 0;
-    let repairCount = 0; let maCount = 0; let installCount = 0;
+    let repairCount = 0; let maCount = 0; let installCount = 0; let demoCount = 0; let surveyCount = 0;
     let latestJob = null;
 
     jobs.forEach(job => {
@@ -284,10 +342,12 @@ function updateDashboardStats(jobs) {
         else smeCount++;
 
         if (type.includes('repair') || type.includes('ซ่อม')) repairCount++;
-        else if (type.includes('ma') || type.includes('maintenance') || type.includes('บำรุง') || type.includes('ล้าง')) maCount++;
+        else if (type.includes('maintenance') || type.includes('บำรุง') || type.includes('ล้าง') || type === 'ma') maCount++;
         else if (type.includes('ติดตั้ง') || type.includes('install')) installCount++;
+        else if (type.includes('survey') || type.includes('สำรวจ')) surveyCount++;
+        else if (type.includes('demo') || type.includes('สาธิต')) demoCount++;
 
-        if (!latestJob) { latestJob = job; } 
+        if (!latestJob) { latestJob = job; }
         else {
             const currentJobTime = `${job.date}T${job.time}`;
             const latestJobTime = `${latestJob.date}T${latestJob.time}`;
@@ -305,6 +365,8 @@ function updateDashboardStats(jobs) {
     document.getElementById('stat-type-repair').innerText = repairCount;
     document.getElementById('stat-type-ma').innerText = maCount;
     document.getElementById('stat-type-install').innerText = installCount;
+    if (document.getElementById('stat-type-demo')) document.getElementById('stat-type-demo').innerText = demoCount;
+    if (document.getElementById('stat-type-survey')) document.getElementById('stat-type-survey').innerText = surveyCount;
 
     if (latestJob) {
         document.getElementById('stat-last-date').innerText = `${latestJob.date} (${latestJob.time} น.)`;
@@ -408,15 +470,15 @@ function renderTable(jobs) {
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><b>${job.date}</b></td>
-            <td><span style="color: var(--text-muted);">${job.time}</span></td>
-            ${isAdmin ? `<td style="font-size:0.82rem; color:var(--text-muted);">${techName}</td>` : ''}
-            <td><span class="custom-badge ${brandClass}">${capitalizeText(job.shop_name)}</span></td>
-            <td><code>${job.branch_code ? job.branch_code.toUpperCase() : '-'}</code></td>
-            <td>${capitalizeText(job.branch_name)}</td>
-            <td><span style="background: var(--panel-bg); color: var(--accent-color); padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; display: inline-block; line-height: 1.2;">${displayJobType}</span></td>
-            <td>${imageHtml}</td>
-            <td>
+            <td class="job-card-primary" data-label="วันที่"><b>${job.date}</b></td>
+            <td data-label="เวลา"><span style="color: var(--text-muted);">${job.time} น.</span></td>
+            ${isAdmin ? `<td data-label="ช่าง"><span style="font-size:0.9rem; color:var(--text-muted);">${techName}</span></td>` : ''}
+            <td data-label="ร้าน/แบรนด์"><span class="custom-badge ${brandClass}">${capitalizeText(job.shop_name)}</span></td>
+            <td data-label="รหัสสาขา"><code>${job.branch_code ? job.branch_code.toUpperCase() : '-'}</code></td>
+            <td data-label="ชื่อสาขา">${capitalizeText(job.branch_name)}</td>
+            <td data-label="ประเภทงาน"><span style="background: var(--panel-bg); color: var(--accent-color); padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; display: inline-block; line-height: 1.2;">${displayJobType}</span></td>
+            <td data-label="รูปใบงาน">${imageHtml}</td>
+            <td data-label="จัดการ">
                 <div class="action-cell">
                     <button class="btn btn-edit" onclick="editJob(${primaryId})">แก้ไข</button>
                     <button class="btn btn-delete" onclick="${deleteHandler}">${deleteLabel}</button>
@@ -457,6 +519,8 @@ function filterJobs() {
             if (selectedTypeFilter === 'repair' && !currentJobType.includes('repair')) return false;
             if (selectedTypeFilter === 'ma' && !currentJobType.includes('ma') && !currentJobType.includes('maintenance')) return false;
             if (selectedTypeFilter === 'install' && !currentJobType.includes('install')) return false;
+            if (selectedTypeFilter === 'demo' && !currentJobType.includes('demo')) return false;
+            if (selectedTypeFilter === 'survey' && !currentJobType.includes('survey')) return false;
         }
 
         // Admin user filter
@@ -481,6 +545,22 @@ function filterJobs() {
     renderTable(currentFilteredJobs);
 }
 
+// ตัวกรองเพิ่มเติม (ประเภทงาน/ค้นหา/ช่วงวันที่): ซ่อน/แสดงได้ เพื่อลดความรกบนจอมือถือ — จำสถานะไว้ใน localStorage
+window.toggleSearchPanel = function() {
+    const body = document.getElementById('search-panel-body');
+    const btn = document.getElementById('btn-toggle-search-panel');
+    const collapsed = body.style.display === 'none';
+    body.style.display = collapsed ? '' : 'none';
+    btn.textContent = collapsed ? 'ซ่อน ▲' : 'แสดง ▼';
+    localStorage.setItem('searchPanelCollapsed', collapsed ? '0' : '1');
+};
+(function initSearchPanelState() {
+    if (localStorage.getItem('searchPanelCollapsed') === '1') {
+        document.getElementById('search-panel-body').style.display = 'none';
+        document.getElementById('btn-toggle-search-panel').textContent = 'แสดง ▼';
+    }
+})();
+
 searchInput.addEventListener('input', filterJobs);
 startDateInput.addEventListener('change', filterJobs);
 endDateInput.addEventListener('change', filterJobs);
@@ -500,9 +580,9 @@ btnClearFilter.addEventListener('click', () => {
 });
 
 window.exportToExcel = function() {
-    if (typeof XLSX === 'undefined') { alert('❌ ตรวจไม่พบโมดูล XLSX ครับ'); return; }
-    if (!currentFilteredJobs || currentFilteredJobs.length === 0) { alert('❌ ไม่มีข้อมูลจะส่งออกครับ'); return; }
-    
+    if (typeof XLSX === 'undefined') { showToast('ตรวจไม่พบโมดูล XLSX ครับ', 'error'); return; }
+    if (!currentFilteredJobs || currentFilteredJobs.length === 0) { showToast('ไม่มีข้อมูลจะส่งออกครับ', 'error'); return; }
+
     try {
         const grouped = groupJobsBySession(currentFilteredJobs);
         const dataForExcel = grouped.map((job, idx) => {
@@ -529,7 +609,8 @@ window.exportToExcel = function() {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "บันทึกงานช่าง");
         XLSX.writeFile(workbook, `สรุปรายงานประวัติงานซ่อม_${new Date().toISOString().split('T')[0]}.xlsx`);
-    } catch (e) { alert('เกิดข้อผิดพลาดในการส่งออก Excel: ' + e.message); }
+        showToast('ส่งออก Excel สำเร็จ', 'success');
+    } catch (e) { showToast('เกิดข้อผิดพลาดในการส่งออก Excel: ' + e.message, 'error'); }
 };
 
 window.openLightbox = function(src, caption) {
@@ -540,26 +621,30 @@ window.openLightbox = function(src, caption) {
 window.closeLightbox = function() { document.getElementById('lightbox-modal').style.display = "none"; }
 
 window.dangerDelete = async function(type) {
-    const MASTER_PASSWORD = "phop23"; let confirmMsg = ""; let deleteUrl = "";
+    if (!currentUser || currentUser.role !== 'admin') { showToast('เฉพาะ Admin เท่านั้นที่ทำรายการนี้ได้', 'error'); return; }
+
+    let confirmMsg = ""; let deleteUrl = "";
+    const requesterParams = `requester_id=${currentUser.id}&role=${currentUser.role}`;
+
     if (type === 'all') {
-        confirmMsg = "🚨 คุณกำลังสั่งลบข้อมูลงานซ่อมทั้งหมดเกลี้ยงตับ! \n\nยืนยันทำรายการต่อใช่ไหม?";
-        deleteUrl = `${API_URL}/danger/all`;
+        confirmMsg = "คุณกำลังจะลบข้อมูลงานซ่อมทั้งหมดในระบบ การกระทำนี้ไม่สามารถย้อนกลับได้ ยืนยันทำรายการต่อใช่ไหม?";
+        deleteUrl = `${API_URL}/danger/all?${requesterParams}`;
     } else if (type === 'month') {
         const startDate = startDateInput.value; const endDate = endDateInput.value;
-        if (!startDate || !endDate) { alert("⚠️ กรุณากำหนดช่วงวันที่ตัวกรองก่อนครับ"); return; }
-        confirmMsg = `📅 ยืนยันลบข้อมูลงานในช่วงวันที่ ${startDate} ถึง ${endDate} หรือไม่?`;
-        deleteUrl = `${API_URL}/danger/range?start=${startDate}&end=${endDate}`;
+        if (!startDate || !endDate) { showToast('กรุณากำหนดช่วงวันที่ตัวกรองก่อนครับ', 'error'); return; }
+        confirmMsg = `ยืนยันลบข้อมูลงานในช่วงวันที่ ${startDate} ถึง ${endDate} หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`;
+        deleteUrl = `${API_URL}/danger/range?start=${startDate}&end=${endDate}&${requesterParams}`;
     }
-    if (!confirm(confirmMsg)) return;
-    const password = prompt("🔒 กรุณากรอกรหัสผ่านเพื่ออนุมัติสิทธิ์:");
-    if (password === null || password !== MASTER_PASSWORD) { alert("❌ รหัสผ่านไม่ถูกต้อง!"); return; }
+
+    const confirmed = await confirmModal(confirmMsg, '🚨 ลบข้อมูลถาวร');
+    if (!confirmed) return;
 
     try {
         const response = await fetch(deleteUrl, { method: 'DELETE' });
         const result = await response.json();
-        if (response.ok) { alert(`✅ ${result.message}`); await fetchJobs(); } 
-        else { alert(`❌ เกิดข้อผิดพลาด: ${result.error}`); }
-    } catch (error) { alert('❌ ล้มเหลวในการเชื่อมต่อเซิร์ฟเวอร์'); }
+        if (response.ok) { showToast(result.message, 'success'); await fetchJobs(); }
+        else { showToast('เกิดข้อผิดพลาด: ' + result.error, 'error'); }
+    } catch (error) { showToast('ล้มเหลวในการเชื่อมต่อเซิร์ฟเวอร์', 'error'); }
 };
 
 jobForm.addEventListener('submit', async (e) => {
@@ -591,23 +676,26 @@ jobForm.addEventListener('submit', async (e) => {
             document.getElementById('form-title').innerText = '📝 ลงข้อมูลงานใหม่';
             document.getElementById('btn-save').innerHTML = '🚀 ยืนยันบันทึกข้อมูลงาน';
             document.getElementById('btn-cancel').style.display = 'none';
-            await fetchJobs(); switchPage('table'); 
-        } else { alert('เกิดข้อผิดพลาดในการบันทึกข้อมูลงาน'); }
-    } catch (error) { console.error(error); }
+            await fetchJobs(); switchPage('table');
+            showToast(id ? 'อัปเดตข้อมูลงานสำเร็จ' : 'บันทึกข้อมูลงานสำเร็จ', 'success');
+        } else { showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูลงาน', 'error'); }
+    } catch (error) { console.error(error); showToast('ล้มเหลวในการเชื่อมต่อเซิร์ฟเวอร์', 'error'); }
 });
 
 window.deleteJob = async function(id) {
-    if (confirm('คุณแน่ใจหรือไม่ที่จะลบรายการนี้?')) {
-        const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-        if (response.ok) fetchJobs();
-    }
+    const confirmed = await confirmModal('คุณแน่ใจหรือไม่ที่จะลบรายการนี้?');
+    if (!confirmed) return;
+    const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+    if (response.ok) { fetchJobs(); showToast('ลบรายการสำเร็จ', 'success'); }
+    else showToast('ลบรายการไม่สำเร็จ', 'error');
 };
 
 window.deleteJobGroup = async function(ids) {
-    if (confirm(`คุณแน่ใจหรือไม่ที่จะลบงานนี้ทั้งหมด ${ids.length} ใบ?`)) {
-        await Promise.all(ids.map(id => fetch(`${API_URL}/${id}`, { method: 'DELETE' })));
-        fetchJobs();
-    }
+    const confirmed = await confirmModal(`คุณแน่ใจหรือไม่ที่จะลบงานนี้ทั้งหมด ${ids.length} ใบ?`);
+    if (!confirmed) return;
+    await Promise.all(ids.map(id => fetch(`${API_URL}/${id}`, { method: 'DELETE' })));
+    fetchJobs();
+    showToast('ลบรายการสำเร็จ', 'success');
 };
 
 window.editJob = function(id) {
@@ -764,15 +852,16 @@ async function loadAdminPanel() {
 }
 
 window.changeRole = async function(userId, newRole) {
-    if (!confirm(`ยืนยันเปลี่ยน role เป็น "${newRole}" ใช่ไหมครับ?`)) { loadAdminPanel(); return; }
+    const confirmed = await confirmModal(`ยืนยันเปลี่ยน role เป็น "${newRole}" ใช่ไหมครับ?`);
+    if (!confirmed) { loadAdminPanel(); return; }
     const res = await fetch(`/api/admin/users/${userId}/role`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newRole })
     });
     const data = await res.json();
-    if (res.ok) loadAdminPanel();
-    else alert('❌ ' + data.error);
+    if (res.ok) { loadAdminPanel(); showToast('เปลี่ยน role สำเร็จ', 'success'); }
+    else showToast(data.error, 'error');
 };
 
 window.openResetModal = function(userId, name) {
@@ -804,7 +893,7 @@ window.confirmResetPin = async function() {
     const data = await res.json();
     if (res.ok) {
         document.getElementById('modal-reset-pin').style.display = 'none';
-        alert(`✅ ${data.message}`);
+        showToast(data.message, 'success');
     } else {
         errEl.textContent = '❌ ' + data.error;
         errEl.style.display = 'block';
@@ -812,11 +901,12 @@ window.confirmResetPin = async function() {
 };
 
 window.deleteUser = async function(userId, name) {
-    if (!confirm(`⚠️ ยืนยันลบผู้ใช้ "${name}" ออกจากระบบ?\n\nข้อมูลงานของผู้ใช้นี้จะยังคงอยู่ แต่จะไม่ถูกผูกกับใคร`)) return;
+    const confirmed = await confirmModal(`ยืนยันลบผู้ใช้ "${name}" ออกจากระบบ? ข้อมูลงานของผู้ใช้นี้จะยังคงอยู่ แต่จะไม่ถูกผูกกับใคร`, '⚠️ ลบผู้ใช้งาน');
+    if (!confirmed) return;
     const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (res.ok) { loadAdminPanel(); fetchJobs(); }
-    else alert('❌ ' + data.error);
+    if (res.ok) { loadAdminPanel(); fetchJobs(); showToast('ลบผู้ใช้สำเร็จ', 'success'); }
+    else showToast(data.error, 'error');
 };
 
 // Override switchPage to trigger admin load
@@ -830,6 +920,10 @@ window.switchPage = function(pageTarget) {
 // Income Page (รายได้)
 // ─────────────────────────────────────────────
 let incomeUsersLoaded = false;
+let incomeRecordsCache = [];
+let incomeDetailDraft = null; // { id, date, ot:[], travel:[{date, legs:[]}], toll:[], parking:[] }
+const OT_RATE_DISPLAY = 125;
+const KM_RATE_DISPLAY = 5;
 
 async function loadIncomeUserOptions() {
     const wrap = document.getElementById('income-user-select');
@@ -879,20 +973,21 @@ async function loadIncomePage(targetUserId) {
         cycleLabelEl.textContent = `รอบบิล ${summary.cycleStart} ถึง ${summary.cycleEnd}`;
 
         const rows = [
-            { icon: '🔧', color: '#16a085', label: 'งานซ่อม / MA', desc: `ค่าตอบแทนจากใบงานซ่อม (Repair) และบำรุงรักษา (Maintenance) ที่ปิดงานแล้ว 100 บาท/ใบ · ปิดไปแล้ว ${summary.jobCount} ใบ`, amount: summary.jobAmount },
-            { icon: '⏱', color: '#e67e22', label: 'OT', desc: `ค่าล่วงเวลานอกเหนือเวลางานปกติ ${OT_RATE_DISPLAY} บาท/ชั่วโมง`, amount: summary.otAmount },
-            { icon: '🚗', color: '#2980b9', label: 'ค่าเดินทาง', desc: `ค่าน้ำมัน/ระยะทางเดินทางไปหน้างาน ${KM_RATE_DISPLAY} บาท/กิโลเมตร`, amount: summary.travelAmount },
-            { icon: '🛣', color: '#8e44ad', label: 'ค่าทางด่วน', desc: 'ค่าผ่านทางพิเศษที่จ่ายเพิ่มระหว่างเดินทางไปหน้างาน', amount: summary.tollAmount },
-            { icon: '🅿️', color: '#c0392b', label: 'ค่าจอดรถ', desc: 'ค่าจอดรถที่จ่ายเพิ่มระหว่างเข้าปฏิบัติงาน', amount: summary.parkingAmount }
+            { icon: '🔧', color: '#16a085', label: 'งานซ่อม / MA', desc: `ค่าตอบแทนจากใบงานซ่อม (Repair) และบำรุงรักษา (Maintenance) ที่ปิดงานแล้ว 100 บาท/ใบ · ปิดไปแล้ว ${summary.jobCount} ใบ`, amount: summary.jobAmount, kind: null },
+            { icon: '⏱', color: '#e67e22', label: 'OT', desc: `ค่าล่วงเวลานอกเหนือเวลางานปกติ ${OT_RATE_DISPLAY} บาท/ชั่วโมง · แตะเพื่อดูรายละเอียดทุกรายการ`, amount: summary.otAmount, kind: 'ot' },
+            { icon: '🚗', color: '#2980b9', label: 'ค่าเดินทาง', desc: `ค่าน้ำมัน/ระยะทางเดินทางไปหน้างาน ${KM_RATE_DISPLAY} บาท/กิโลเมตร · แตะเพื่อดูรายละเอียดทุกรายการ`, amount: summary.travelAmount, kind: 'travel' },
+            { icon: '🛣', color: '#8e44ad', label: 'ค่าทางด่วน', desc: 'ค่าผ่านทางพิเศษที่จ่ายเพิ่มระหว่างเดินทางไปหน้างาน · แตะเพื่อดูรายละเอียดทุกรายการ', amount: summary.tollAmount, kind: 'toll' },
+            { icon: '🅿️', color: '#c0392b', label: 'ค่าจอดรถ', desc: 'ค่าจอดรถที่จ่ายเพิ่มระหว่างเข้าปฏิบัติงาน · แตะเพื่อดูรายละเอียดทุกรายการ', amount: summary.parkingAmount, kind: 'parking' }
         ];
         breakdownEl.innerHTML = rows.map(r => `
-            <div class="income-row">
+            <div class="income-row${r.kind ? ' income-row-clickable' : ''}"${r.kind ? ` onclick="openCategoryDetail('${r.kind}')" role="button" tabindex="0"` : ''}>
                 <div class="ir-icon" style="background:${r.color}22; color:${r.color};">${r.icon}</div>
                 <div class="ir-main">
                     <div class="ir-label">${r.label}</div>
                     <div class="ir-detail">${r.desc}</div>
                 </div>
                 <div class="ir-amount">${(r.amount || 0).toLocaleString()}<span class="ir-unit"> บ.</span></div>
+                ${r.kind ? '<div class="ir-chevron">›</div>' : ''}
             </div>
         `).join('');
 
@@ -912,12 +1007,26 @@ function formatThaiDateShort(dateStr) {
     if (!y || !m || !d) return dateStr;
     return `${String(d).padStart(2, '0')} ${THAI_MONTHS_SHORT[m - 1]} ${y + 543}`;
 }
+/** แสดงวันที่+เวลาแบบสั้นสำหรับ "วันที่อัปโหลด" (created_at จาก Supabase, ISO string) — ต่างจากวันที่ของรายการ (r.date) */
+function formatThaiDateTimeShort(isoStr) {
+    if (!isoStr) return '-';
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return '-';
+    // แปลงเป็นเวลาไทย (UTC+7) เพื่อให้ตรงกับเวลาที่ผู้ใช้อัปโหลดจริงจาก LINE
+    const th = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+    const day = String(th.getUTCDate()).padStart(2, '0');
+    const month = THAI_MONTHS_SHORT[th.getUTCMonth()];
+    const year = th.getUTCFullYear() + 543;
+    const hh = String(th.getUTCHours()).padStart(2, '0');
+    const mm = String(th.getUTCMinutes()).padStart(2, '0');
+    return `${day} ${month} ${year} ${hh}:${mm} น.`;
+}
 
 async function loadIncomeRecords(targetUserId) {
     const bodyEl = document.getElementById('income-records-body');
     const emptyEl = document.getElementById('income-records-empty');
     const countEl = document.getElementById('income-records-count');
-    bodyEl.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">กำลังโหลด...</td></tr>';
+    bodyEl.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-muted);">กำลังโหลด...</td></tr>';
     emptyEl.style.display = 'none';
 
     const params = new URLSearchParams({ requester_id: currentUser.id, role: currentUser.role });
@@ -944,7 +1053,7 @@ async function loadIncomeRecords(targetUserId) {
             return;
         }
 
-        // เรียงจากวันที่ล่าสุดไปเก่าสุด (เผื่อ API ไม่ได้เรียงมา), ถ้าวันที่ตรงกันเรียงตาม id ล่าสุดก่อน
+        // เรียงจากวันที่ของรายการล่าสุดไปเก่าสุด (วันที่ทำงานจริง ไม่ใช่วันที่อัปโหลด) เผื่อ API ไม่ได้เรียงมา, ถ้าวันที่ตรงกันเรียงตาม id ล่าสุดก่อน
         const sorted = [...records].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : b.id - a.id));
 
         bodyEl.innerHTML = sorted.map(r => {
@@ -952,6 +1061,7 @@ async function loadIncomeRecords(targetUserId) {
             return `
                 <tr>
                     <td><b>${formatThaiDateShort(r.date)}</b></td>
+                    <td><span class="upload-date-cell">${formatThaiDateTimeShort(r.created_at)}</span></td>
                     <td>${amtCell(r.ot_amount)}</td>
                     <td>${amtCell(r.travel_amount)}</td>
                     <td>${amtCell(r.toll_amount)}</td>
@@ -959,7 +1069,7 @@ async function loadIncomeRecords(targetUserId) {
                     <td><span style="background: var(--panel-bg); color: var(--accent-color); padding: 4px 10px; border-radius: 20px; font-weight: 700; display:inline-block;">${(r.total_amount || 0).toLocaleString()} บ.</span></td>
                     <td>
                         <div class="action-cell">
-                            <button class="btn btn-edit" onclick="openIncomeDetailModal(${r.id})">✏️ แก้ไข</button>
+                            <button class="btn btn-edit" onclick="editIncomeRecord(${r.id})">✏️ แก้ไข</button>
                             <button class="btn btn-delete" onclick="deleteIncomeRecord(${r.id})">🗑️ ลบ</button>
                         </div>
                     </td>
@@ -974,25 +1084,116 @@ async function loadIncomeRecords(targetUserId) {
 }
 
 window.deleteIncomeRecord = async function(id) {
-    if (!confirm('ยืนยันลบรายการนี้ใช่ไหมครับ? การลบนี้จะมีผลทั้งในเว็บและ LINE ทันที')) return;
+    const confirmed = await confirmModal('ยืนยันลบรายการนี้ใช่ไหมครับ? การลบนี้จะมีผลทั้งในเว็บและ LINE ทันที');
+    if (!confirmed) return;
     const params = new URLSearchParams({ requester_id: currentUser.id, role: currentUser.role });
     const res = await fetch(`/api/income/records/${id}?${params}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) { alert('❌ ' + data.error); return; }
+    if (!res.ok) { showToast(data.error, 'error'); return; }
 
+    showToast('ลบรายการสำเร็จ', 'success');
     const sel = document.getElementById('income-user-filter');
     loadIncomePage(currentUser.role === 'admin' && sel ? sel.value : undefined);
 };
 
 // ─────────────────────────────────────────────
-// Income Detail Editor Modal (ดู/แก้ไขรายละเอียดเต็ม: OT / เดินทาง / ผ่านทาง / จอดรถ)
+// Income Category Detail Viewer (แตะแถวสรุป OT / เดินทาง / ทางด่วน / จอดรถ เพื่อดูรายละเอียดทุกรายการในรอบบิลนี้)
 // ─────────────────────────────────────────────
-let incomeRecordsCache = [];
-let incomeDetailDraft = null; // { id, date, ot:[], travel:[{date, legs:[]}], toll:[], parking:[] }
-const OT_RATE_DISPLAY = 125;
-const KM_RATE_DISPLAY = 5;
+const CATEGORY_META = {
+    ot: { title: '⏱ รายละเอียด OT ทั้งหมด', sub: `รวมทุกรายการ OT ในรอบบิลนี้ (${OT_RATE_DISPLAY} บาท/ชั่วโมง)` },
+    travel: { title: '🚗 รายละเอียดค่าเดินทางทั้งหมด', sub: `รวมทุกช่วงทางที่เดินทางในรอบบิลนี้ (${KM_RATE_DISPLAY} บาท/กิโลเมตร)` },
+    toll: { title: '🛣 รายละเอียดค่าทางด่วนทั้งหมด', sub: 'รวมทั้งรายการที่จดเดี่ยว และค่าทางด่วนที่แนบกับช่วงทางเดินทาง' },
+    parking: { title: '🅿️ รายละเอียดค่าจอดรถทั้งหมด', sub: 'รวมทั้งรายการที่จดเดี่ยว และค่าจอดรถที่แนบกับช่วงทางเดินทาง' }
+};
 
-window.openIncomeDetailModal = function(id) {
+/** รวบรวมรายการทั้งหมดของหมวดที่เลือก จากทุกแถว extra_income ในรอบบิลนี้ (incomeRecordsCache) */
+function collectCategoryEntries(kind) {
+    const entries = [];
+    (incomeRecordsCache || []).forEach(r => {
+        if (kind === 'ot') {
+            (r.ot_details || []).forEach(e => {
+                entries.push({
+                    date: e.date || r.date,
+                    title: `${e.hours ?? 0} ชั่วโมง`,
+                    detail: e.reason || '-',
+                    amount: e.amount ?? ((Number(e.hours) || 0) * OT_RATE_DISPLAY)
+                });
+            });
+        } else if (kind === 'travel') {
+            (r.travel_details || []).forEach(route => {
+                (route.legs || []).forEach(l => {
+                    entries.push({
+                        date: route.date || r.date,
+                        title: `${l.from || '?'} → ${l.to || '?'}`,
+                        detail: `${l.job ? l.job + ' · ' : ''}${l.km ?? 0} กม.`,
+                        amount: l.amount ?? ((Number(l.km) || 0) * KM_RATE_DISPLAY)
+                    });
+                });
+            });
+        } else if (kind === 'toll') {
+            (r.toll_details || []).forEach(t => {
+                entries.push({ date: t.date || r.date, title: 'ค่าทางด่วน (จดเดี่ยว)', detail: t.detail || '-', amount: t.amount || 0 });
+            });
+            (r.travel_details || []).forEach(route => {
+                (route.legs || []).forEach(l => {
+                    if (l.toll_amount) {
+                        entries.push({ date: route.date || r.date, title: `ค่าทางด่วน (${l.from || '?'} → ${l.to || '?'})`, detail: l.job || '-', amount: l.toll_amount });
+                    }
+                });
+            });
+        } else if (kind === 'parking') {
+            (r.parking_details || []).forEach(t => {
+                entries.push({ date: t.date || r.date, title: 'ค่าจอดรถ (จดเดี่ยว)', detail: t.detail || '-', amount: t.amount || 0 });
+            });
+            (r.travel_details || []).forEach(route => {
+                (route.legs || []).forEach(l => {
+                    if (l.parking_amount) {
+                        entries.push({ date: route.date || r.date, title: `ค่าจอดรถ (${l.from || '?'} → ${l.to || '?'})`, detail: l.job || '-', amount: l.parking_amount });
+                    }
+                });
+            });
+        }
+    });
+    entries.sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
+    return entries;
+}
+
+window.openCategoryDetail = function(kind) {
+    const meta = CATEGORY_META[kind];
+    if (!meta) return;
+    const entries = collectCategoryEntries(kind);
+    const total = entries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+    document.getElementById('category-detail-title').textContent = meta.title;
+    document.getElementById('category-detail-sub').textContent = meta.sub;
+    document.getElementById('category-detail-total').textContent = `${total.toLocaleString()} บาท`;
+
+    const listEl = document.getElementById('category-detail-list');
+    listEl.innerHTML = entries.length ? entries.map(e => `
+        <div class="income-detail-row category-detail-readrow">
+            <div class="cdr-date">${formatThaiDateShort(e.date)}</div>
+            <div class="cdr-main">
+                <div class="cdr-title">${e.title}</div>
+                <div class="cdr-detail">${e.detail}</div>
+            </div>
+            <div class="cdr-amount">${(Number(e.amount) || 0).toLocaleString()} บ.</div>
+        </div>
+    `).join('') : '<div class="income-detail-empty">ยังไม่มีรายการในหมวดนี้สำหรับรอบบิลนี้</div>';
+
+    document.getElementById('modal-category-detail').style.display = 'flex';
+};
+
+window.closeCategoryDetail = function(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('modal-category-detail').style.display = 'none';
+};
+
+// ─────────────────────────────────────────────
+// Income Edit Page (แก้ไขรายละเอียดเต็มของ 1 รายการ: OT / เดินทาง / ผ่านทาง / จอดรถ)
+// เข้าถึงผ่านปุ่ม "✏️ แก้ไข" ในตารางรายการ — สลับไปหน้าแก้ไขเต็มหน้า (page-income-edit)
+// เหมือนกับรูปแบบการแก้ไขงานในหน้า "ประวัติงาน" (editJob → switchPage('form'))
+// ─────────────────────────────────────────────
+window.editIncomeRecord = function(id) {
     const record = incomeRecordsCache.find(r => r.id === id);
     if (!record) return;
 
@@ -1014,16 +1215,30 @@ window.openIncomeDetailModal = function(id) {
 
     document.getElementById('income-detail-date').value = incomeDetailDraft.date;
     document.getElementById('income-detail-error').style.display = 'none';
-    // แสดง modal ก่อน แล้วค่อย render รายการทีหลังในเฟรมถัดไป
-    // (กัน popup ค้าง/กระตุกตอนเปิด เพราะเดิมสร้าง DOM หลายก้อนพร้อมกับตอนที่ popup กำลังเล่นอนิเมชันเปิด)
-    document.getElementById('modal-income-detail').style.display = 'flex';
+
+    const metaEl = document.getElementById('income-edit-meta');
+    if (metaEl) {
+        metaEl.innerHTML = `
+            <div class="income-edit-meta-row">
+                <span>📤 อัปโหลดเข้าระบบเมื่อ:</span>
+                <b>${formatThaiDateTimeShort(record.created_at)}</b>
+            </div>
+            <div class="income-edit-meta-row">
+                <span>🔖 รหัสรายการ:</span>
+                <b>#${record.id}</b>
+            </div>
+        `;
+    }
+
+    switchPage('income-edit');
+    // render รายการหลังสลับหน้าเสร็จในเฟรมถัดไป กัน DOM ยังไม่พร้อม/กระตุก
     requestAnimationFrame(() => renderIncomeDetailModal());
 };
 
 window.closeIncomeDetailModal = function(e) {
     if (e && e.target !== e.currentTarget) return;
-    document.getElementById('modal-income-detail').style.display = 'none';
     incomeDetailDraft = null;
+    switchPage('income');
 };
 
 function renderIncomeDetailModal() {
@@ -1208,9 +1423,8 @@ window.saveIncomeDetailModal = async function() {
     const data = await res.json();
     if (!res.ok) { errEl.textContent = '❌ ' + data.error; errEl.style.display = 'block'; return; }
 
+    showToast('บันทึกการแก้ไขสำเร็จ', 'success');
     closeIncomeDetailModal();
-    const sel = document.getElementById('income-user-filter');
-    loadIncomePage(currentUser.role === 'admin' && sel ? sel.value : undefined);
 };
 
 // Override switchPage to trigger income load

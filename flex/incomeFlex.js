@@ -209,7 +209,7 @@ function makeIncomeSummaryFlex(state) {
         detailRows.push({
             type: 'box', layout: 'horizontal', margin: 'md', alignItems: 'center',
             contents: [
-                { type: 'text', text: `🛣 ค่าทางด่วน #${i + 1}`, size: 'xs', color: '#555555', flex: 5 },
+                { type: 'text', text: `🛣 ค่าทางด่วน #${i + 1}${t.date ? ' — ' + t.date : ''}`, size: 'xs', weight: 'bold', color: '#2c3e50', flex: 5, wrap: true },
                 { type: 'text', text: `${t.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' },
                 { type: 'button', flex: 2, height: 'sm', style: 'link', color: '#e74c3c', action: { type: 'message', label: '🗑 ลบ', text: `__inc_del_toll_${i}__` } }
             ]
@@ -220,7 +220,7 @@ function makeIncomeSummaryFlex(state) {
         detailRows.push({
             type: 'box', layout: 'horizontal', margin: 'md', alignItems: 'center',
             contents: [
-                { type: 'text', text: `🅿️ ค่าจอดรถ #${i + 1}`, size: 'xs', color: '#555555', flex: 5 },
+                { type: 'text', text: `🅿️ ค่าจอดรถ #${i + 1}${t.date ? ' — ' + t.date : ''}`, size: 'xs', weight: 'bold', color: '#2c3e50', flex: 5, wrap: true },
                 { type: 'text', text: `${t.amount.toLocaleString()} บ.`, size: 'xs', color: '#2c3e50', flex: 3, align: 'end' },
                 { type: 'button', flex: 2, height: 'sm', style: 'link', color: '#e74c3c', action: { type: 'message', label: '🗑 ลบ', text: `__inc_del_parking_${i}__` } }
             ]

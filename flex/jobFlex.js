@@ -223,7 +223,9 @@ function makeJobTypeFlex() {
                 contents: [
                     { type: 'button', style: 'primary', color: '#ff4757', action: { type: 'message', label: '🛠 Repair', text: 'Repair' } },
                     { type: 'button', style: 'primary', color: '#2ed573', action: { type: 'message', label: '⚙️ Maintenance', text: 'Maintenance' } },
-                    { type: 'button', style: 'primary', color: '#1e90ff', action: { type: 'message', label: '🏗 Installation', text: 'Installation' } }
+                    { type: 'button', style: 'primary', color: '#1e90ff', action: { type: 'message', label: '🏗 Installation', text: 'Installation' } },
+                    { type: 'button', style: 'primary', color: '#7c3aed', action: { type: 'message', label: '🎬 Demo', text: 'Demo' } },
+                    { type: 'button', style: 'primary', color: '#0d9488', action: { type: 'message', label: '📐 Site Survey', text: 'Site Survey' } }
                 ]
             }
         }
