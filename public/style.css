@@ -81,9 +81,6 @@ body {
 .btn-theme {
     background: var(--card-bg); border: 1px solid var(--border-color); width: 40px; height: 40px; border-radius: 10px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
-.btn-theme.active-page-icon {
-    border-color: var(--accent-color); box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
-}
 
 /* การ์ด */
 .card {
@@ -264,6 +261,533 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 .shop-sme { border-left: 5px solid #a855f7; color: #a855f7; background: rgba(168, 85, 247, 0.03); } /* สีม่วง */
 .shop-bbq { border-left: 5px solid #f97316; color: #f97316; background: rgba(249, 115, 22, 0.03); }  /* สีส้ม */
 .shop-other-brand { border-left: 5px solid #64748b; color: #64748b; background: rgba(100, 116, 139, 0.03); } /* สีเทา */
+
+/* ==========================================================================
+   🧱 เพิ่มคลาสตกแต่งเพิ่มเติมสำหรับหน้าประวัติงาน (v1.3 โดย PHOP)
+   ========================================================================== */
+
+/* 📊 ตัวบอกยอดผลการค้นหา และปุ่ม Excel */
+.search-results-counter {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.btn-excel {
+    background: linear-gradient(135deg, #107c41, #1f9a55) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-excel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 124, 65, 0.3);
+}
+
+/* 🏷️ ดีไซน์ป้ายสแตมป์แบรนด์ (Custom Badges) */
+.custom-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+}
+.badge-mk { background-color: #ffebe6; color: #de350b; }
+.badge-fuji { background-color: #deebff; color: #0747a6; }
+.badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bonus { background-color: #f3e8ff; color: #6b21a8; }
+.badge-bbq { background-color: #e3fcef; color: #006644; }
+.badge-sme { background-color: #fff0b3; color: #172b4d; }
+
+/* 🖼️ ระบบ Image Lightbox Modal */
+.lightbox {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    padding-top: 60px;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.85);
+}
+.lightbox-content {
+    margin: auto;
+    display: block;
+    max-width: 90%;
+    max-height: 75vh;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    animation: zoomEffect 0.25s ease;
+}
+@keyframes zoomEffect {
+    from {transform: scale(0.7); opacity: 0;}
+    to {transform: scale(1); opacity: 1;}
+}
+.lightbox-close {
+    position: absolute;
+    top: 20px;
+    right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.lightbox-close:hover { color: #bbb; }
+#lightbox-caption {
+    margin: auto;
+    display: block;
+    width: 80%;
+    max-width: 700px;
+    text-align: center;
+    color: #ccc;
+    padding: 15px 0;
+    font-size: 1rem;
+}
+
+/* ==========================================================================
+   🧱 โครงสร้างดีไซน์เพิ่มเติม ระบบลบแบบใช้รหัส, ตัวนับ และ Lightbox (v1.3)
+   ========================================================================== */
+
+.search-results-counter {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.btn-excel {
+    background: linear-gradient(135deg, #107c41, #1f9a55) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-excel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 124, 65, 0.3);
+}
+.btn-danger-zone {
+    background: linear-gradient(135deg, #d32f2f, #f44336) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+.btn-danger-zone:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
+}
+
+/* ป้ายแสดงชื่อแบรนด์คุมสีแมทช์กับระบบ */
+.custom-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+}
+.badge-mk { background-color: #ffebe6; color: #de350b; }
+.badge-fuji { background-color: #deebff; color: #0747a6; }
+.badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bonus { background-color: #f3e8ff; color: #6b21a8; }
+.badge-bbq { background-color: #e3fcef; color: #006644; }
+.badge-sme { background-color: #fff0b3; color: #172b4d; }
+
+/* หน้าต่างส่องขยายรูปภาพใบงาน (Lightbox Modal) */
+.lightbox {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    padding-top: 60px;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.85);
+}
+.lightbox-content {
+    margin: auto;
+    display: block;
+    max-width: 90%;
+    max-height: 75vh;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    animation: zoomEffect 0.25s ease;
+}
+@keyframes zoomEffect {
+    from {transform: scale(0.7); opacity: 0;}
+    to {transform: scale(1); opacity: 1;}
+}
+.lightbox-close {
+    position: absolute;
+    top: 20px; right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.lightbox-close:hover { color: #bbb; }
+#lightbox-caption {
+    margin: auto;
+    display: block;
+    width: 80%; max-width: 700px;
+    text-align: center;
+    color: #ccc;
+    padding: 15px 0;
+    font-size: 1rem;
+}
+
+/* ==========================================================================
+   🧱 โครงสร้างดีไซน์เพิ่มเติม ระบบลบแบบใช้รหัส, ตัวนับ และ Lightbox (v1.3)
+   ========================================================================== */
+
+.search-results-counter {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.btn-excel {
+    background: linear-gradient(135deg, #107c41, #1f9a55) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-excel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 124, 65, 0.3);
+}
+.btn-danger-zone {
+    background: linear-gradient(135deg, #d32f2f, #f44336) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+.btn-danger-zone:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
+}
+
+.custom-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+}
+.badge-mk { background-color: #ffebe6; color: #de350b; }
+.badge-fuji { background-color: #deebff; color: #0747a6; }
+.badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bonus { background-color: #f3e8ff; color: #6b21a8; }
+.badge-bbq { background-color: #e3fcef; color: #006644; }
+.badge-sme { background-color: #fff0b3; color: #172b4d; }
+
+.lightbox {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    padding-top: 60px;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.85);
+}
+.lightbox-content {
+    margin: auto;
+    display: block;
+    max-width: 90%;
+    max-height: 75vh;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    animation: zoomEffect 0.25s ease;
+}
+@keyframes zoomEffect {
+    from {transform: scale(0.7); opacity: 0;}
+    to {transform: scale(1); opacity: 1;}
+}
+.lightbox-close {
+    position: absolute;
+    top: 20px; right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.lightbox-close:hover { color: #bbb; }
+#lightbox-caption {
+    margin: auto;
+    display: block;
+    width: 80%; max-width: 700px;
+    text-align: center;
+    color: #ccc;
+    padding: 15px 0;
+    font-size: 1rem;
+}
+
+/* ==========================================================================
+   🧱 โครงสร้างดีไซน์เพิ่มเติม ระบบลบแบบใช้รหัส, ตัวนับ และ Lightbox (v1.5)
+   ========================================================================== */
+
+.search-results-counter {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.btn-excel {
+    background: linear-gradient(135deg, #107c41, #1f9a55) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-excel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 124, 65, 0.3);
+}
+.btn-danger-zone {
+    background: linear-gradient(135deg, #d32f2f, #f44336) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+.btn-danger-zone:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
+}
+
+.custom-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+}
+.badge-mk { background-color: #ffebe6; color: #de350b; }
+.badge-fuji { background-color: #deebff; color: #0747a6; }
+.badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bonus { background-color: #f3e8ff; color: #6b21a8; }
+.badge-bbq { background-color: #e3fcef; color: #006644; }
+.badge-sme { background-color: #fff0b3; color: #172b4d; }
+
+.lightbox {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    padding-top: 60px;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.85);
+}
+.lightbox-content {
+    margin: auto;
+    display: block;
+    max-width: 90%;
+    max-height: 75vh;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    animation: zoomEffect 0.25s ease;
+}
+@keyframes zoomEffect {
+    from {transform: scale(0.7); opacity: 0;}
+    to {transform: scale(1); opacity: 1;}
+}
+.lightbox-close {
+    position: absolute;
+    top: 20px; right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.lightbox-close:hover { color: #bbb; }
+#lightbox-caption {
+    margin: auto;
+    display: block;
+    width: 80%; max-width: 700px;
+    text-align: center;
+    color: #ccc;
+    padding: 15px 0;
+    font-size: 1rem;
+}
+
+/* ==========================================================================
+   🧱 โครงสร้างดีไซน์เพิ่มเติม ระบบลบแบบใช้รหัส, ตัวนับ, Lightbox และ แท็กกรองแยกด่วน (v1.6)
+   ========================================================================== */
+
+.search-results-counter {
+    margin-top: 15px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.btn-excel {
+    background: linear-gradient(135deg, #107c41, #1f9a55) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-excel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 124, 65, 0.3);
+}
+.btn-danger-zone {
+    background: linear-gradient(135deg, #d32f2f, #f44336) !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+.btn-danger-zone:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
+}
+
+.custom-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+}
+.badge-mk { background-color: #ffebe6; color: #de350b; }
+.badge-fuji { background-color: #deebff; color: #0747a6; }
+.badge-lucky { background-color: #eae6ff; color: #403294; }
+.badge-bonus { background-color: #f3e8ff; color: #6b21a8; }
+.badge-bbq { background-color: #e3fcef; color: #006644; }
+.badge-sme { background-color: #fff0b3; color: #172b4d; }
+
+/* 🎛️ ดีไซน์แท็กควบคุมตัวกรองแยกข้อมูลหน้าตารางประวัติ */
+.quick-filters-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.filter-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+    min-width: 100px;
+}
+.filter-tags-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.tag-btn {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.tag-btn:hover {
+    background-color: var(--border-color);
+    color: var(--text-main);
+}
+.tag-btn.active {
+    background-color: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    font-weight: 600;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+/* ไฮไลต์สีสไตล์พิเศษตามแบรนด์เมื่อถูกเลือกกดแอ็กทีฟ */
+.tag-btn.tag-mk.active { background-color: #de350b !important; border-color: #de350b !important; }
+.tag-btn.tag-fuji.active { background-color: #0747a6 !important; border-color: #0747a6 !important; }
+.tag-btn.tag-lucky.active { background-color: #403294 !important; border-color: #403294 !important; }
+.tag-btn.tag-bonus.active { background-color: #8e44ad !important; border-color: #8e44ad !important; }
+.tag-btn.tag-bbq.active { background-color: #006644 !important; border-color: #006644 !important; }
+.tag-btn.tag-sme.active { background-color: #e5a900 !important; border-color: #e5a900 !important; }
+
+.lightbox {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    padding-top: 60px;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.85);
+}
+.lightbox-content {
+    margin: auto;
+    display: block;
+    max-width: 90%;
+    max-height: 75vh;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    animation: zoomEffect 0.25s ease;
+}
+@keyframes zoomEffect {
+    from {transform: scale(0.7); opacity: 0;}
+    to {transform: scale(1); opacity: 1;}
+}
+.lightbox-close {
+    position: absolute;
+    top: 20px; right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.lightbox-close:hover { color: #bbb; }
+#lightbox-caption {
+    margin: auto;
+    display: block;
+    width: 80%; max-width: 700px;
+    text-align: center;
+    color: #ccc;
+    padding: 15px 0;
+    font-size: 1rem;
+}
 
 /* ==========================================================================
    🧱 โครงสร้างดีไซน์เพิ่มเติม ระบบ Dropdown และฟิลด์เงื่อนไขพิเศษ (v1.7)
@@ -701,73 +1225,4 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
 @media (max-width: 520px) {
     .admin-stats-row { grid-template-columns: repeat(2, 1fr); }
     .auc-actions { gap: 6px; }
-}
-
-/* ═══════════════════════════════════════
-   Toast Notifications
-═══════════════════════════════════════ */
-.toast-container {
-    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
-    z-index: 10500; display: flex; flex-direction: column; gap: 10px;
-    width: calc(100% - 32px); max-width: 420px; pointer-events: none;
-}
-.toast {
-    background: var(--card-bg); border: 1px solid var(--border-color);
-    border-left: 4px solid var(--accent-color);
-    border-radius: 10px; padding: 12px 16px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-    font-size: 0.88rem; color: var(--text-main);
-    display: flex; align-items: center; gap: 8px;
-    animation: toastIn 0.25s ease;
-    pointer-events: auto;
-}
-.toast.toast-success { border-left-color: var(--success-color); }
-.toast.toast-error { border-left-color: var(--danger-color); }
-.toast.toast-hide { animation: toastOut 0.2s ease forwards; }
-@keyframes toastIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-6px); } }
-
-/* ═══════════════════════════════════════
-   Collapsible filter panel (history page)
-═══════════════════════════════════════ */
-.search-panel-header {
-    display: flex; align-items: center; justify-content: space-between;
-    cursor: pointer; user-select: none;
-}
-.search-panel-toggle {
-    background: var(--panel-bg); border: 1px solid var(--border-color); color: var(--text-main);
-    border-radius: 8px; padding: 5px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
-}
-.search-panel-body { margin-top: 12px; }
-.search-panel.collapsed .search-panel-body { display: none; }
-
-/* ═══════════════════════════════════════
-   Job history: mobile card layout
-   (ตารางบนจอกว้าง, การ์ดบนมือถือ)
-═══════════════════════════════════════ */
-@media (max-width: 720px) {
-    .table-container table thead { display: none; }
-    .table-container table, .table-container table tbody, .table-container table tr, .table-container table td {
-        display: block; width: 100%;
-    }
-    .table-container { border: none; overflow: visible; }
-    .table-container table tr {
-        background: var(--panel-bg); border: 1px solid var(--border-color);
-        border-radius: 12px; margin-bottom: 12px; padding: 12px 14px;
-    }
-    .table-container table td {
-        border-bottom: none; padding: 6px 0; white-space: normal;
-        display: flex; justify-content: space-between; align-items: center; gap: 10px;
-    }
-    .table-container table td::before {
-        content: attr(data-label);
-        font-size: 0.75rem; font-weight: 700; color: var(--text-muted);
-        flex-shrink: 0; min-width: 78px;
-    }
-    .table-container table td.job-card-primary::before { display: none; }
-    .table-container table td.job-card-primary {
-        font-size: 1rem; font-weight: 700; justify-content: flex-start; padding-bottom: 10px;
-        border-bottom: 1px dashed var(--border-color); margin-bottom: 6px;
-    }
-    .table-container table td .action-cell { width: 100%; justify-content: flex-end; }
 }

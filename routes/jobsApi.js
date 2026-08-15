@@ -5,21 +5,6 @@ const supabase = require('../config/supabaseClient');
 const { uploadImageToStorage, deleteImageFromStorage, upload } = require('../services/imageStorage');
 const { capitalizeTextBackend, getBrandCategory } = require('../utils/textHelpers');
 
-// ตรวจสิทธิ์ admin จากฐานข้อมูลจริง (ไม่เชื่อ role ที่ client ส่งมาตรงๆ) — ใช้ก่อนอนุญาตทำรายการอันตราย เช่น ลบข้อมูลทั้งหมด
-async function requireAdmin(req, res) {
-    const requesterId = req.query.requester_id || req.body.requester_id;
-    if (!requesterId) {
-        res.status(400).json({ error: 'ต้องระบุ requester_id' });
-        return null;
-    }
-    const { data: user, error } = await supabase.from('users').select('id, role').eq('id', requesterId).single();
-    if (error || !user || user.role !== 'admin') {
-        res.status(403).json({ error: 'เฉพาะ Admin เท่านั้นที่ทำรายการนี้ได้' });
-        return null;
-    }
-    return user;
-}
-
 router.post('/api/jobs', upload.single('image'), async (req, res) => {
     const { date, time, shop_brand, shop_name, branch_code, branch_name, job_type, repair_detail, user_id } = req.body;
     let image_path = '';
@@ -82,8 +67,6 @@ router.delete('/api/jobs/:id', async (req, res) => {
 // ลบข้อมูลตามช่วงวันที่
 // ลบข้อมูลตามช่วงวันที่
 router.delete('/api/jobs/danger/range', async (req, res) => {
-    if (!(await requireAdmin(req, res))) return;
-
     const { start, end } = req.query;
     if (!start || !end) return res.status(400).json({ error: 'Missing start/end date' });
 
@@ -119,8 +102,6 @@ router.delete('/api/jobs/danger/range', async (req, res) => {
 // ล้างข้อมูลทั้งหมด
 // ล้างข้อมูลทั้งหมด
 router.delete('/api/jobs/danger/all', async (req, res) => {
-    if (!(await requireAdmin(req, res))) return;
-
     try {
         // 1. ดึงทุกแถวเพื่อลบไฟล์รูปภาพในเครื่อง
         const { data: rows, error: selectError } = await supabase
