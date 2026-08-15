@@ -7,7 +7,7 @@ const { BRANCH_MAP, AUTO_BRANCH_SHOPS, INCOME_SECRET_COMMAND, OT_RATE_PER_HOUR, 
 const { capitalizeTextBackend, getBrandCategory, parseFlexibleIncomeDate } = require('../utils/textHelpers');
 const { uploadImageToStorage } = require('../services/imageStorage');
 const { saveJobToDatabase, sendJobSummaryAfterImage } = require('../services/jobService');
-const { computeIncomeSummary, computeTotals } = require('../services/incomeService');
+const { computeIncomeSummary } = require('../services/incomeService');
 const {
     makeGreetingAndShopFlex, makeShopConfirmFlex,
     makeJobTypeFlex, makeRepairDetailFlex, makeAskMoreImageFlex, makeAlertFlex, makeDatePickerFlex
@@ -315,13 +315,17 @@ router.post('/webhook', async (req, res) => {
                         const routes = incState.routes || [];
                         const tolls = incState.tolls || [];
                         const parkings = incState.parkings || [];
+                        const otHours = otEntries.reduce((s, e) => s + e.hours, 0);
+                        const otAmount = otEntries.reduce((s, e) => s + e.amount, 0);
+                        const travelKm = routes.reduce((s, r) => s + r.total_km, 0);
+                        const travelAmount = routes.reduce((s, r) => s + r.amount, 0);
+                        const routeTollAmount = routes.reduce((s, r) => s + (r.toll_amount || 0), 0);
+                        const routeParkingAmount = routes.reduce((s, r) => s + (r.parking_amount || 0), 0);
+                        const tollAmount = tolls.reduce((s, t) => s + t.amount, 0) + routeTollAmount;
+                        const parkingAmount = parkings.reduce((s, t) => s + t.amount, 0) + routeParkingAmount;
+                        const totalAmount = otAmount + travelAmount + tollAmount + parkingAmount;
 
-                        const checkTotal = otEntries.reduce((s, e) => s + (e.amount || 0), 0)
-                            + routes.reduce((s, r) => s + (r.amount || 0) + (r.toll_amount || 0) + (r.parking_amount || 0), 0)
-                            + tolls.reduce((s, t) => s + (t.amount || 0), 0)
-                            + parkings.reduce((s, t) => s + (t.amount || 0), 0);
-
-                        if (checkTotal <= 0) {
+                        if (totalAmount <= 0) {
                             await client.replyMessage({ replyToken: event.replyToken, messages: [
                                 makeAlertFlex('warning', 'ยังไม่มีรายการให้บันทึกครับ กรุณาเพิ่มรายการก่อน')
                             ]});
@@ -331,41 +335,22 @@ router.post('/webhook', async (req, res) => {
                         const { data: userRow } = await supabase.from('users').select('id').eq('line_user_id', userId).single();
                         const dbUserId = userRow ? userRow.id : null;
                         const nowTH = new Date(Date.now() + 7 * 60 * 60 * 1000);
-                        const todayStr = nowTH.toISOString().split('T')[0];
+                        const dateStr = nowTH.toISOString().split('T')[0];
 
-                        // จัดกลุ่มทุกรายการตาม "วันที่ของรายการจริง" ที่ผู้ใช้ระบุไว้ (ไม่ใช่วันที่อัปโหลดเข้า LINE เสมอไป)
-                        // เพื่อให้แต่ละวันแยกเป็นคนละแถวใน extra_income — เช่น จด OT ย้อนหลังวันที่ 9 พร้อมกับ
-                        // เดินทางวันที่ 11 ในเซสชันเดียวกัน จะถูกบันทึกแยกเป็น 2 แถว วันที่ 9 และวันที่ 11 ตามจริง
-                        const groups = {};
-                        const ensureGroup = (d) => {
-                            const key = d || todayStr;
-                            if (!groups[key]) groups[key] = { ot: [], travel: [], toll: [], parking: [] };
-                            return groups[key];
-                        };
-                        otEntries.forEach(e => ensureGroup(e.date).ot.push(e));
-                        routes.forEach(r => ensureGroup(r.date).travel.push(r));
-                        tolls.forEach(t => ensureGroup(t.date).toll.push(t));
-                        parkings.forEach(p => ensureGroup(p.date).parking.push(p));
-
-                        const dateKeys = Object.keys(groups).sort();
-                        const insertRows = dateKeys.map(dateKey => {
-                            const g = groups[dateKey];
-                            const totals = computeTotals({
-                                otDetails: g.ot, travelDetails: g.travel, tollDetails: g.toll, parkingDetails: g.parking
-                            });
-                            return {
-                                user_id: dbUserId,
-                                line_user_id: userId,
-                                date: dateKey,
-                                ot_hours: totals.otHours, ot_amount: totals.otAmount, ot_details: totals.otEntries,
-                                travel_km: totals.travelKm, travel_amount: totals.travelAmount, travel_details: totals.routes,
-                                toll_amount: totals.tollAmount, toll_details: totals.tolls,
-                                parking_amount: totals.parkingAmount, parking_details: totals.parkings,
-                                total_amount: totals.totalAmount
-                            };
-                        });
-
-                        const { error: saveErr } = await supabase.from('extra_income').insert(insertRows);
+                        const { error: saveErr } = await supabase.from('extra_income').insert([{
+                            user_id: dbUserId,
+                            line_user_id: userId,
+                            date: dateStr,
+                            ot_hours: otHours,
+                            ot_amount: otAmount,
+                            ot_details: otEntries,
+                            travel_km: travelKm,
+                            travel_amount: travelAmount,
+                            travel_details: routes,
+                            toll_amount: tollAmount,
+                            parking_amount: parkingAmount,
+                            total_amount: totalAmount
+                        }]);
 
                         delete userStates[userId];
 
@@ -374,12 +359,8 @@ router.post('/webhook', async (req, res) => {
                                 makeAlertFlex('error', 'บันทึกไม่สำเร็จ: ' + saveErr.message)
                             ]});
                         } else {
-                            const grandTotal = insertRows.reduce((s, r) => s + r.total_amount, 0);
-                            const dateSummary = dateKeys.length > 1
-                                ? `แยกบันทึกลงวันที่จริง ${dateKeys.length} วัน (${dateKeys.join(', ')})`
-                                : `บันทึกลงวันที่ ${dateKeys[0]}`;
                             await client.replyMessage({ replyToken: event.replyToken, messages: [
-                                makeAlertFlex('success', `บันทึกสำเร็จ! รวมค่าตอบแทนเพิ่มเติม ${grandTotal.toLocaleString()} บาท — ${dateSummary} (⚠️ ไม่นับเป็นรายได้หลัก)`)
+                                makeAlertFlex('success', `บันทึกสำเร็จ! รวมค่าตอบแทนเพิ่มเติม ${totalAmount.toLocaleString()} บาท (⚠️ ไม่นับเป็นรายได้หลัก)`)
                             ]});
                         }
                     } else if (text === '__inc_cancel__') {
@@ -619,32 +600,15 @@ router.post('/webhook', async (req, res) => {
                     continue;
                 }
 
-                // ── ค่าทางด่วน (จดเดี่ยว): รายละเอียด → ถามวันที่ ──
+                // ── ค่าทางด่วน (จดเดี่ยว): รายละเอียด → บันทึก ──
                 if (incState.step === 'INC_TOLL_DETAIL') {
                     incState.currentToll.detail = text;
-                    incState.step = 'INC_TOLL_DATE';
-                    await client.replyMessage({ replyToken: event.replyToken, messages: [
-                        makeIncomeAskFlex('🛣 จดค่าทางด่วน', 'กรุณาระบุวันที่จ่ายค่าทางด่วนนี้', 'พิมพ์ "วันนี้" หรือรูปแบบ DD-MM เช่น 20-06 (ใช้ปีปัจจุบัน, รองรับบันทึกย้อนหลัง)')
-                    ]});
-                    continue;
-                }
-
-                // ── ค่าทางด่วน (จดเดี่ยว): วันที่ → บันทึก ──
-                if (incState.step === 'INC_TOLL_DATE') {
-                    const parsed = parseFlexibleIncomeDate(text);
-                    if (!parsed.ok) {
-                        await client.replyMessage({ replyToken: event.replyToken, messages: [
-                            makeAlertFlex('warning', `รูปแบบวันที่ไม่ถูกต้องครับ พิมพ์ "วันนี้" หรือรูปแบบ DD-MM เช่น 20-06`)
-                        ]});
-                        continue;
-                    }
-                    incState.currentToll.date = parsed.date;
                     incState.tolls.push(incState.currentToll);
-                    const { amount, date } = incState.currentToll;
+                    const amount = incState.currentToll.amount;
                     incState.currentToll = null;
                     incState.step = 'INC_MENU';
                     await client.replyMessage({ replyToken: event.replyToken, messages: [
-                        makeAlertFlex('success', `บันทึกค่าทางด่วน ${date} — ${amount.toLocaleString()} บาท แล้วครับ`),
+                        makeAlertFlex('success', `บันทึกค่าทางด่วน ${amount.toLocaleString()} บาท แล้วครับ`),
                         makeIncomeMenuFlex(incState)
                     ]});
                     continue;
@@ -667,32 +631,15 @@ router.post('/webhook', async (req, res) => {
                     continue;
                 }
 
-                // ── ค่าจอดรถ (จดเดี่ยว): รายละเอียด → ถามวันที่ ──
+                // ── ค่าจอดรถ (จดเดี่ยว): รายละเอียด → บันทึก ──
                 if (incState.step === 'INC_PARKING_DETAIL') {
                     incState.currentParking.detail = text;
-                    incState.step = 'INC_PARKING_DATE';
-                    await client.replyMessage({ replyToken: event.replyToken, messages: [
-                        makeIncomeAskFlex('🅿️ จดค่าจอดรถ', 'กรุณาระบุวันที่จ่ายค่าจอดรถนี้', 'พิมพ์ "วันนี้" หรือรูปแบบ DD-MM เช่น 20-06 (ใช้ปีปัจจุบัน, รองรับบันทึกย้อนหลัง)')
-                    ]});
-                    continue;
-                }
-
-                // ── ค่าจอดรถ (จดเดี่ยว): วันที่ → บันทึก ──
-                if (incState.step === 'INC_PARKING_DATE') {
-                    const parsed = parseFlexibleIncomeDate(text);
-                    if (!parsed.ok) {
-                        await client.replyMessage({ replyToken: event.replyToken, messages: [
-                            makeAlertFlex('warning', `รูปแบบวันที่ไม่ถูกต้องครับ พิมพ์ "วันนี้" หรือรูปแบบ DD-MM เช่น 20-06`)
-                        ]});
-                        continue;
-                    }
-                    incState.currentParking.date = parsed.date;
                     incState.parkings.push(incState.currentParking);
-                    const { amount, date } = incState.currentParking;
+                    const amount = incState.currentParking.amount;
                     incState.currentParking = null;
                     incState.step = 'INC_MENU';
                     await client.replyMessage({ replyToken: event.replyToken, messages: [
-                        makeAlertFlex('success', `บันทึกค่าจอดรถ ${date} — ${amount.toLocaleString()} บาท แล้วครับ`),
+                        makeAlertFlex('success', `บันทึกค่าจอดรถ ${amount.toLocaleString()} บาท แล้วครับ`),
                         makeIncomeMenuFlex(incState)
                     ]});
                     continue;

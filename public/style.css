@@ -773,32 +773,3 @@ code { background-color: var(--code-bg); padding: 3px 6px; border-radius: 4px; f
     }
     .table-container table td .action-cell { width: 100%; justify-content: flex-end; }
 }
-/* ═══════════════════════════════════════
-   Income Page — Clickable Category Rows / Upload Date / Edit Page / Category Detail Modal
-═══════════════════════════════════════ */
-.income-row-clickable { cursor: pointer; }
-.income-row-clickable:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); transform: translateY(-1px); }
-.income-row-clickable:active { transform: translateY(0); }
-.income-row .ir-chevron { flex: 0 0 auto; font-size: 1.3rem; color: var(--text-muted); font-weight: 700; margin-left: -2px; }
-
-.upload-date-cell { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
-
-.income-edit-meta {
-    display: flex; flex-wrap: wrap; gap: 10px 18px;
-    background: var(--panel-bg); border: 1px solid var(--border-color);
-    border-radius: 10px; padding: 10px 14px; margin-bottom: 18px;
-}
-.income-edit-meta-row { font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 6px; align-items: center; }
-.income-edit-meta-row b { color: var(--text-main); }
-
-.category-detail-readrow { align-items: center; }
-.cdr-date { flex: 0 0 auto; min-width: 74px; font-size: 0.78rem; font-weight: 700; color: var(--accent-color); }
-.cdr-main { flex: 1 1 auto; min-width: 0; }
-.cdr-title { font-size: 0.85rem; font-weight: 700; color: var(--text-main); }
-.cdr-detail { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; word-break: break-word; }
-.cdr-amount { flex: 0 0 auto; font-size: 0.88rem; font-weight: 800; color: #c0392b; white-space: nowrap; }
-
-@media (max-width: 520px) {
-    .income-row .ir-detail { font-size: 0.7rem; }
-    .cdr-date { min-width: 60px; }
-}
