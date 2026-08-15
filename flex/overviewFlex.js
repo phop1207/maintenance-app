@@ -56,7 +56,7 @@ function makeOverviewResultFlex(jobs, periodLabel, displayName) {
 
     const total = grouped.length;
     const brandCount = {};
-    const typeCount = { Maintenance: 0, Repair: 0, Installation: 0, Demo: 0, 'Site Survey': 0 };
+    const typeCount = { Maintenance: 0, Repair: 0, Installation: 0 };
 
     for (const j of grouped) {
         const b = j.shop_brand || 'Sme';
@@ -101,35 +101,6 @@ function makeOverviewResultFlex(jobs, periodLabel, displayName) {
     if (typeCount.Maintenance) copyText += `  🔧 Maintenance: ${typeCount.Maintenance} งาน\n`;
     if (typeCount.Repair) copyText += `  🛠 Repair: ${typeCount.Repair} งาน\n`;
     if (typeCount.Installation) copyText += `  🏗 Installation: ${typeCount.Installation} งาน\n`;
-    if (typeCount.Demo) copyText += `  🎬 Demo: ${typeCount.Demo} งาน\n`;
-    if (typeCount['Site Survey']) copyText += `  📐 Site Survey: ${typeCount['Site Survey']} งาน\n`;
-
-    // กล่องแสดงแต่ละประเภทงาน (เฉพาะที่มีงาน) แบ่งเป็นแถวละสูงสุด 3 กล่อง กันแน่นเกินไปเวลามีหลายประเภท
-    const typeBoxDefs = [
-        { key: 'Maintenance', icon: '🔧', label: 'MA', color: '#27ae60', bg: '#e8f8f5' },
-        { key: 'Repair', icon: '🛠', label: 'Repair', color: '#e67e22', bg: '#fef9e7' },
-        { key: 'Installation', icon: '🏗', label: 'Install', color: '#2980b9', bg: '#eaf2ff' },
-        { key: 'Demo', icon: '🎬', label: 'Demo', color: '#7c3aed', bg: '#f3e8ff' },
-        { key: 'Site Survey', icon: '📐', label: 'Survey', color: '#0d9488', bg: '#e6fffa' }
-    ].filter(d => typeCount[d.key]);
-
-    const typeBoxes = typeBoxDefs.map(d => ({
-        type: 'box', layout: 'vertical', flex: 1,
-        backgroundColor: d.bg, cornerRadius: '8px', paddingAll: '8px', alignItems: 'center',
-        contents: [
-            { type: 'text', text: d.icon, size: 'xl', align: 'center' },
-            { type: 'text', text: d.label, size: 'xs', color: d.color, weight: 'bold', align: 'center' },
-            { type: 'text', text: `${typeCount[d.key]}`, size: 'md', weight: 'bold', color: d.color, align: 'center' }
-        ]
-    }));
-
-    const typeRows = [];
-    for (let i = 0; i < typeBoxes.length; i += 3) {
-        typeRows.push({
-            type: 'box', layout: 'horizontal', margin: 'sm', spacing: 'sm',
-            contents: typeBoxes.slice(i, i + 3)
-        });
-    }
 
     return {
         flex: {
@@ -162,7 +133,38 @@ function makeOverviewResultFlex(jobs, periodLabel, displayName) {
                         ...brandRows,
                         { type: 'separator', margin: 'md' },
                         { type: 'text', text: '⚙️ แยกตามประเภทงาน', size: 'sm', weight: 'bold', color: '#2c3e50', margin: 'sm' },
-                        ...typeRows
+                        {
+                            type: 'box', layout: 'horizontal', margin: 'sm', spacing: 'sm',
+                            contents: [
+                                ...(typeCount.Maintenance ? [{
+                                    type: 'box', layout: 'vertical', flex: 1,
+                                    backgroundColor: '#e8f8f5', cornerRadius: '8px', paddingAll: '8px', alignItems: 'center',
+                                    contents: [
+                                        { type: 'text', text: '🔧', size: 'xl', align: 'center' },
+                                        { type: 'text', text: 'MA', size: 'xs', color: '#27ae60', weight: 'bold', align: 'center' },
+                                        { type: 'text', text: `${typeCount.Maintenance}`, size: 'md', weight: 'bold', color: '#27ae60', align: 'center' }
+                                    ]
+                                }] : []),
+                                ...(typeCount.Repair ? [{
+                                    type: 'box', layout: 'vertical', flex: 1,
+                                    backgroundColor: '#fef9e7', cornerRadius: '8px', paddingAll: '8px', alignItems: 'center',
+                                    contents: [
+                                        { type: 'text', text: '🛠', size: 'xl', align: 'center' },
+                                        { type: 'text', text: 'Repair', size: 'xs', color: '#e67e22', weight: 'bold', align: 'center' },
+                                        { type: 'text', text: `${typeCount.Repair}`, size: 'md', weight: 'bold', color: '#e67e22', align: 'center' }
+                                    ]
+                                }] : []),
+                                ...(typeCount.Installation ? [{
+                                    type: 'box', layout: 'vertical', flex: 1,
+                                    backgroundColor: '#eaf2ff', cornerRadius: '8px', paddingAll: '8px', alignItems: 'center',
+                                    contents: [
+                                        { type: 'text', text: '🏗', size: 'xl', align: 'center' },
+                                        { type: 'text', text: 'Install', size: 'xs', color: '#2980b9', weight: 'bold', align: 'center' },
+                                        { type: 'text', text: `${typeCount.Installation}`, size: 'md', weight: 'bold', color: '#2980b9', align: 'center' }
+                                    ]
+                                }] : [])
+                            ]
+                        }
                     ]
                 },
                 footer: {

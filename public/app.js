@@ -327,7 +327,7 @@ async function fetchJobs() {
 
 function updateDashboardStats(jobs) {
     let mkCount = 0; let fujiCount = 0; let luckyCount = 0; let smeCount = 0; let bbqCount = 0; let bonusCount = 0;
-    let repairCount = 0; let maCount = 0; let installCount = 0; let demoCount = 0; let surveyCount = 0;
+    let repairCount = 0; let maCount = 0; let installCount = 0;
     let latestJob = null;
 
     jobs.forEach(job => {
@@ -342,12 +342,10 @@ function updateDashboardStats(jobs) {
         else smeCount++;
 
         if (type.includes('repair') || type.includes('ซ่อม')) repairCount++;
-        else if (type.includes('maintenance') || type.includes('บำรุง') || type.includes('ล้าง') || type === 'ma') maCount++;
+        else if (type.includes('ma') || type.includes('maintenance') || type.includes('บำรุง') || type.includes('ล้าง')) maCount++;
         else if (type.includes('ติดตั้ง') || type.includes('install')) installCount++;
-        else if (type.includes('survey') || type.includes('สำรวจ')) surveyCount++;
-        else if (type.includes('demo') || type.includes('สาธิต')) demoCount++;
 
-        if (!latestJob) { latestJob = job; }
+        if (!latestJob) { latestJob = job; } 
         else {
             const currentJobTime = `${job.date}T${job.time}`;
             const latestJobTime = `${latestJob.date}T${latestJob.time}`;
@@ -365,8 +363,6 @@ function updateDashboardStats(jobs) {
     document.getElementById('stat-type-repair').innerText = repairCount;
     document.getElementById('stat-type-ma').innerText = maCount;
     document.getElementById('stat-type-install').innerText = installCount;
-    if (document.getElementById('stat-type-demo')) document.getElementById('stat-type-demo').innerText = demoCount;
-    if (document.getElementById('stat-type-survey')) document.getElementById('stat-type-survey').innerText = surveyCount;
 
     if (latestJob) {
         document.getElementById('stat-last-date').innerText = `${latestJob.date} (${latestJob.time} น.)`;
@@ -519,8 +515,6 @@ function filterJobs() {
             if (selectedTypeFilter === 'repair' && !currentJobType.includes('repair')) return false;
             if (selectedTypeFilter === 'ma' && !currentJobType.includes('ma') && !currentJobType.includes('maintenance')) return false;
             if (selectedTypeFilter === 'install' && !currentJobType.includes('install')) return false;
-            if (selectedTypeFilter === 'demo' && !currentJobType.includes('demo')) return false;
-            if (selectedTypeFilter === 'survey' && !currentJobType.includes('survey')) return false;
         }
 
         // Admin user filter
